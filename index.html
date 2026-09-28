@@ -114,7 +114,7 @@ main{max-width:760px;margin:0 auto;padding:20px 16px 32px}
    PESTAÑAS
    ========================================================= */
 .tabs{max-width:760px;margin:18px auto 0;padding:0 16px;display:flex;gap:4px;border-bottom:2px solid var(--line)}
-.tab{flex:1;font:700 1rem/1.2 var(--t-cond);text-transform:uppercase;letter-spacing:.02em;color:var(--muted);
+.tab{flex:1 1 0;min-width:0;font:700 clamp(.82rem,3.4vw,1rem)/1.15 var(--t-cond);text-transform:uppercase;letter-spacing:.02em;color:var(--muted);
   background:none;border:0;border-bottom:4px solid transparent;margin-bottom:-2px;padding:12px 6px;cursor:pointer}
 .tab[aria-selected="true"]{color:var(--naranjo-tx);border-bottom-color:var(--naranjo)}
 [hidden]{display:none!important}
@@ -163,6 +163,7 @@ a.feat-card:hover{border-color:var(--naranjo)}
 <nav class="tabs" role="tablist" aria-label="Secciones">
   <button class="tab" role="tab" id="tab-rec" data-tab="rec" aria-controls="panel-rec" aria-selected="true">Recursos</button>
   <button class="tab" role="tab" id="tab-rf" data-tab="rf" aria-controls="panel-rf" aria-selected="false">Riesgos de Fatalidad</button>
+  <button class="tab" role="tab" id="tab-inv" data-tab="inv" aria-controls="panel-inv" aria-selected="false">Metodología de Investigación</button>
 </nav>
 
 <main>
@@ -175,6 +176,10 @@ a.feat-card:hover{border-color:var(--naranjo)}
     <p class="rf-intro">Documentos corporativos de Riesgos de Fatalidad (SIGO-ECC-003). Toca una tarjeta para abrir el libro en PDF.</p>
     <ul class="rf-feat" id="rf-feat"></ul>
     <ul class="rf-grid" id="rf-grid"></ul>
+  </section>
+  <section id="panel-inv" role="tabpanel" aria-labelledby="tab-inv" hidden>
+    <p class="rf-intro">Metodología ICAM para la investigación de incidentes: documentos de referencia y plantilla del informe.</p>
+    <div id="inv-content"></div>
   </section>
 </main>
 
@@ -194,12 +199,15 @@ const CONFIG = {
 };
 
 const RECURSOS = [
+  { categoria:"links", titulo:"ZYGHT", descripcion:"Plataforma de gestión SSO de la División", icono:"web", tag:"Plataforma", url:"https://gssodrt.zyght.com/" },
+  { categoria:"links", titulo:"Checklist de vehículo liviano", descripcion:"Formulario de revisión pre uso (Microsoft Forms)", icono:"camioneta", tag:"Formulario", url:"https://forms.office.com/pages/responsepage.aspx?id=uyO86S53kECrxLn9SFBB_N8jz3frRPpGjO__YXgxyLhUQ0dXTlFHNlJCTUhVRVY3ODYyRks4TzI3Wi4u&route=shorturl" },
+  { categoria:"links", titulo:"Asistencia a Caminatas de Seguridad", descripcion:"Registro de asistencia (Microsoft Forms)", icono:"caminata", tag:"Formulario", url:"https://forms.cloud.microsoft/r/jdRgjCDMJm?origin=lprLink" },
   { categoria:"doc",  titulo:"Documento de ejemplo 1", descripcion:"Descripción breve del documento", url:"#" },
   { categoria:"doc",  titulo:"Documento de ejemplo 2", descripcion:"Descripción breve del documento", url:"#" },
   { categoria:"html", titulo:"Tablero HTML de ejemplo", descripcion:"Descripción breve del tablero", url:"#" },
   { categoria:"pbi",  titulo:"Dashboard Riesgos de Fatalidad (RF)", descripcion:"Requiere cuenta Codelco", url:"https://app.powerbi.com/Redirect?action=OpenReport&appId=eb98d547-46fd-4305-b79d-0347ce3080e7&reportObjectId=cc726b0f-c0eb-4075-b662-fb0a5f9943af&ctid=e9bc23bb-772e-4090-abc4-b9fd485041fc&reportPage=32248bdb037ce77e2f13&pbi_source=appShareLink&portalSessionId=93d5d4a5-3270-4d31-8070-3b34207832cb" },
-  { categoria:"pbi",  titulo:"DRT GSSO - Power BI", descripcion:"Requiere cuenta Codelco", url:"#" },
-  { categoria:"form", titulo:"Checklist de vehículo liviano", descripcion:"Formulario de revisión pre uso (Microsoft Forms)", icono:"camioneta", url:"https://forms.office.com/pages/responsepage.aspx?id=uyO86S53kECrxLn9SFBB_N8jz3frRPpGjO__YXgxyLhUQ0dXTlFHNlJCTUhVRVY3ODYyRks4TzI3Wi4u&route=shorturl" }
+  { categoria:"pbi",  titulo:"DRT GSSO - Power BI", descripcion:"Requiere cuenta Codelco", url:"#" }
+
 ];
 
 /* =========================================================
@@ -228,6 +236,17 @@ const RIESGOS = [
   { n:"31", nombre:"Incendio de Equipos Mineros e Industriales", evento:"Pérdida de control de variables del fuego en equipos mineros e industriales", codigo:"SIGO-ECC-003-31", version:"000", vigencia:"13-05-2026", url:"RF31.pdf", peso:"2,3" }
 ];
 
+/* =========================================================
+   METODOLOGÍA DE INVESTIGACIÓN: agrega aquí los documentos
+   - seccion: título del grupo (ej. "Procedimientos", "Formatos")
+   - url: nombre del PDF subido a GitHub o enlace completo
+   ========================================================= */
+const INVESTIGACION = [
+  { seccion:"Documentos base", titulo:"Metodología de Investigación ICAM", descripcion:"Gerencia Corporativa SSO. 59 láminas, PDF 5,2 MB", url:"Metodologia-ICAM.pdf", tag:"PDF" },
+  { seccion:"Documentos base", titulo:"Guía de Investigación ICAM", descripcion:"Manual en la gestión de riesgos críticos. 46 páginas, PDF 1,9 MB", url:"Guia-ICAM.pdf", tag:"PDF" },
+  { seccion:"Plantillas", titulo:"Template Informe de Investigación ICAM", descripcion:"Plantilla editable de 31 láminas con los 7 pasos. PowerPoint, 5,3 MB", url:"Template-ICAM.pptx", tag:"PPTX" }
+];
+
 /* Documentos destacados (van arriba de las tarjetas de RF) */
 const DESTACADOS = [
   { titulo:"Controles Críticos que Salvan Vidas", tipo:"Trabajador/a y Supervisor/a", descripcion:"SIGO-G-012, versión 002, vigencia 12-05-2026. PDF, 3,3 MB", url:"Controles-Criticos-que-Salvan-Vidas.pdf",
@@ -241,6 +260,8 @@ const RF_ICONOS = {"RF01": "data:image/webp;base64,UklGRnwYAABXRUJQVlA4WAoAAAAQA
 
 /* Íconos especiales por recurso (campo "icono" en RECURSOS) */
 const ICONOS_EXTRA = {
+  web: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9M12 3C9.5 5.6 8.2 8.6 8.2 12s1.3 6.4 3.8 9"/>',
+  caminata: '<circle cx="13" cy="4.5" r="1.8"/><path d="M10.5 21l2-6.2 2.4 2.2V21M8 12.2l2.2-3.6 3.1-.6 2.2 3 2.5 1M12.5 14.8l.8-6.8M8 21l2.5-6.2"/>',
   camioneta: '<g transform="translate(12 12) scale(1.12) translate(-12 -13.3)"><path d="M2 16.5v-4.5h8V8h5.6l3 4H21a1 1 0 0 1 1 1v3.5"/><path d="M13 8v4h5.6M4.3 16.5H2M15.2 16.5H8.8M22 16.5h-2.2"/><circle cx="6.5" cy="16.5" r="2.1"/><circle cx="17.5" cy="16.5" r="2.1"/></g>'
 };
 
@@ -248,10 +269,10 @@ const ICONOS_EXTRA = {
    CATEGORÍAS (normalmente no se toca)
    ========================================================= */
 const CATS = {
+  links: { nombre:"Links de interés", tag:"Enlace", icon:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v3H9zM8.5 11.5l1.5 1.5 3-3M8.5 17h7"/>' },
   doc:  { nombre:"Documentos",    tag:"PDF",      icon:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>' },
   html: { nombre:"Tableros",      tag:"HTML",     icon:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 20V9"/>' },
   pbi:  { nombre:"Power BI",      tag:"Power BI", icon:'<path d="M6 20V13M12 20V8M18 20V4"/>' },
-  form: { nombre:"Formularios",   tag:"Formulario", icon:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v3H9zM8.5 11.5l1.5 1.5 3-3M8.5 17h7"/>' },
   otro: { nombre:"Otros enlaces", tag:"Enlace",   icon:'<path d="M10 14a4 4 0 0 0 5.6 0l3-3a4 4 0 0 0-5.6-5.6l-1 1"/><path d="M14 10a4 4 0 0 0-5.6 0l-3 3a4 4 0 0 0 5.6 5.6l1-1"/>' }
 };
 
@@ -287,7 +308,7 @@ function render(){
         <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONOS_EXTRA[r.icono] || c.icon}</svg></span>
         <span class="txt"><span class="title">${esc(r.titulo)}</span>
         ${r.descripcion ? `<div class="desc">${esc(r.descripcion)}</div>` : ""}</span>
-        <span class="tag">${c.tag}</span></a></li>`).join("") +
+        <span class="tag">${esc(r.tag || c.tag)}</span></a></li>`).join("") +
       `</ul></section>`;
   }).join("");
 }
@@ -320,16 +341,37 @@ function renderRF(){
   }).join("");
 }
 
-/* Pestañas: #rf en la dirección abre directo Riesgos de Fatalidad */
-let tab = location.hash === "#rf" ? "rf" : "rec";
+function renderINV(){
+  const q = $q.value.trim().toLowerCase();
+  const vis = INVESTIGACION.filter(d => !q || (d.seccion+" "+d.titulo+" "+d.descripcion).toLowerCase().includes(q));
+  const $i = document.getElementById("inv-content");
+  if(!vis.length){ $i.innerHTML = `<p class="empty">No hay documentos que coincidan con “${esc($q.value)}”.</p>`; return; }
+  const secciones = [...new Set(vis.map(d => d.seccion))];
+  const icon = '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>';
+  $i.innerHTML = secciones.map(sec => `<section class="group"><h2>${esc(sec)}</h2><ul class="list">` +
+    vis.filter(d => d.seccion === sec).map(d => {
+      const ic = d.tag === "PPTX" ? '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M12 17v3M8 20h8M7 13l3-3 2 2 4-4"/>' : icon;
+      const inner = `<span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg></span>
+        <span class="txt"><span class="title">${esc(d.titulo)}</span>
+        <div class="desc">${d.url ? esc(d.descripcion) : "Enlace pendiente"}</div></span>
+        <span class="tag">${esc(d.tag || "PDF")}</span>`;
+      return d.url ? `<li><a class="item" href="${esc(d.url)}" target="_blank" rel="noopener">${inner}</a></li>`
+                   : `<li><div class="item" style="opacity:.7">${inner}</div></li>`;
+    }).join("") + `</ul></section>`).join("");
+}
+
+/* Pestañas: #rf o #inv en la dirección abren directo esa pestaña */
+const HASHES = { rf:"#rf", inv:"#inv" };
+let tab = location.hash === "#rf" ? "rf" : location.hash === "#inv" ? "inv" : "rec";
 function setTab(t){
   tab = t;
   document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t));
   document.getElementById("panel-rec").hidden = t !== "rec";
   document.getElementById("panel-rf").hidden = t !== "rf";
+  document.getElementById("panel-inv").hidden = t !== "inv";
   $q.placeholder = t === "rf" ? "Buscar riesgo por nombre o número" : "Buscar por nombre o tema";
-  history.replaceState(null, "", t === "rf" ? "#rf" : location.pathname + location.search);
-  t === "rf" ? renderRF() : render();
+  history.replaceState(null, "", HASHES[t] || location.pathname + location.search);
+  t === "rf" ? renderRF() : t === "inv" ? renderINV() : render();
 }
 document.querySelector(".tabs").addEventListener("click", e => {
   const b = e.target.closest(".tab"); if(b) setTab(b.dataset.tab);
@@ -339,7 +381,7 @@ $f.addEventListener("click", e => {
   const b = e.target.closest(".chip"); if(!b) return;
   filtro = b.dataset.k; renderFiltros(); render();
 });
-$q.addEventListener("input", () => tab === "rf" ? renderRF() : render());
+$q.addEventListener("input", () => tab === "rf" ? renderRF() : tab === "inv" ? renderINV() : render());
 document.getElementById("upd").textContent = "Actualizado el " + CONFIG.actualizado;
 renderFiltros(); setTab(tab);
 </script>
