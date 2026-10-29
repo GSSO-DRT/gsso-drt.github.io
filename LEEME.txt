@@ -1,0 +1,26 @@
+REPORTE RF DRT - CORTES SEMANALES
+=================================
+
+Contenido de la carpeta (subir tal cual al portal):
+  reporte_rf_drt.html   El reporte. No se modifica cada semana.
+  cortes/               Datos. Cada semana se agregan 2 archivos y se actualiza index.json.
+  generar_corte.py      Script que convierte la exportación en un corte.
+
+Cada lunes a las 16:00 h
+1. Exportar DETALLE_REQUERIMIENTOS_RF_DRT y guardarlo con la fecha del corte,
+   por ejemplo DETALLE_REQUERIMIENTOS_RF_DRT_2026-11-02.xlsx.
+2. Generar el corte (requiere Python con pandas y openpyxl):
+     python generar_corte.py DETALLE_REQUERIMIENTOS_RF_DRT_2026-11-02.xlsx 2026-11-02
+   Esto crea cortes/resumen_2026-11-02.json y cortes/brechas_2026-11-02.json y actualiza cortes/index.json.
+   (Alternativa: enviar la exportación a Claude y pedir el corte de la semana.)
+3. Subir al portal la carpeta cortes/ actualizada (los 2 archivos nuevos + index.json).
+   El reporte toma automáticamente el corte más reciente y lo compara con el anterior.
+
+Importante
+- El script debe correr sobre la carpeta cortes/ que ya tiene los cortes anteriores:
+  así se calcula cuántas semanas lleva abierta cada brecha.
+- No borrar ni renombrar archivos de cortes anteriores: son el historial.
+- El reporte debe abrirse desde el portal (https). Abierto como archivo local, el navegador
+  bloquea la lectura de la carpeta cortes/.
+- Mantener el mismo criterio cada semana (controles críticos transversales, Existencia = 1).
+  Si cambia, el historial deja de ser comparable.
