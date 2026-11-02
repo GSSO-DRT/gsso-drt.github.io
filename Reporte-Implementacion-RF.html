@@ -63,6 +63,11 @@ main{padding:16px 20px 40px;min-width:0}
 .hbar .b{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0}
 .hbar .ref{position:absolute;top:-3px;bottom:-3px;width:0;border-left:1px dashed #8a949b}
 .hbar .v{font-size:12.5px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.hbar.wk{grid-template-columns:minmax(140px,300px) 1fr 44px 62px}
+.hbar .pv{position:absolute;top:-4px;bottom:-4px;width:3px;margin-left:-1.5px;background:#1f2a30;border-radius:1px}
+.hbar .dl{font-size:12px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hlegend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin:-4px 0 8px}
+.hlegend i{display:inline-block;width:3px;height:12px;background:#1f2a30;vertical-align:-2px;margin-right:5px;border-radius:1px}
 .hbar.click{cursor:pointer}.hbar.click:hover .n{color:var(--navy);text-decoration:underline}
 svg text{font-family:inherit}
 .tablewrap{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:4px}
@@ -234,6 +239,7 @@ function dlt(cur, prev, upGood, pts, ref) {
   return `<div class="d ${good ? "up" : "down"}">${d > 0 ? "▲" : "▼"} ${v} vs ${ref}</div>`;
 }
 const withData = (l) => l.filter((u) => u.n > 0);
+const wkTip = (v, pv) => { if (!PREV) return ""; if (pv == null) return "<br>Sin dato el " + dmy(PREV.f); const d = v - pv; return `<br>Semana anterior (${dmy(PREV.f)}): ${fmt(pv)} · ${Math.abs(d) < 0.05 ? "sin cambio" : (d > 0 ? "▲ " : "▼ ") + Math.abs(d).toFixed(1).replace(".", ",") + " pts"}`; };
 
 // ---------- tooltip ----------
 const tip = $("tip");
@@ -267,7 +273,15 @@ function scopeText(list) {
 // ---------- charts ----------
 function hbars(rows, opt = {}) {
   if (!rows.length) return `<div class="empty">Sin datos para este filtro.</div>`;
-  return rows.map((r) => `<div class="hbar ${r.click ? "click" : ""}" ${r.click ? `data-open="${r.click}"` : ""} data-tip="${esc(r.tip)}"><div class="n" title="${esc(r.name)}">${esc(r.name)}${r.num ? `<span class="num">${r.num}</span>` : ""}</div><div class="t"><div class="b" style="width:${Math.max(0, Math.min(100, r.v || 0))}%;background:${col(r.v)}"></div><div class="ref" style="left:80%"></div><div class="ref" style="left:90%"></div></div><div class="v">${fmt(r.v)}</div></div>`).join("");
+  const wk = !!opt.wk;
+  const dl = (r) => {
+    if (!wk) return "";
+    if (r.pv == null || r.v == null) return `<div class="dl eq" title="Sin dato en el corte anterior">nuevo</div>`;
+    const d = Math.round((r.v - r.pv) * 10) / 10;
+    if (d === 0) return `<div class="dl eq">=</div>`;
+    return `<div class="dl ${d > 0 ? "up" : "down"}">${d > 0 ? "▲" : "▼"} ${Math.abs(d).toFixed(1).replace(".", ",")}</div>`;
+  };
+  return rows.map((r) => `<div class="hbar ${wk ? "wk" : ""} ${r.click ? "click" : ""}" ${r.click ? `data-open="${r.click}"` : ""} data-tip="${esc(r.tip)}"><div class="n" title="${esc(r.name)}">${esc(r.name)}${r.num ? `<span class="num">${r.num}</span>` : ""}</div><div class="t"><div class="b" style="width:${Math.max(0, Math.min(100, r.v || 0))}%;background:${col(r.v)}"></div><div class="ref" style="left:80%"></div><div class="ref" style="left:90%"></div>${wk && r.pv != null ? `<div class="pv" style="left:${Math.max(0, Math.min(100, r.pv))}%"></div>` : ""}</div><div class="v">${fmt(r.v)}</div>${dl(r)}</div>`).join("");
 }
 function rfColumns(o) {
   const rs = RFS.map((r) => ({ r, v: rfPct(o, r) })).filter((x) => typeof x.v === "number");
@@ -347,12 +361,13 @@ function pageResumen(list) {
   </div>`;
   let rows;
   if (S.ger === "Todas") {
-    rows = GORD.map((g) => { const l = wd.filter((u) => u.ger === g); if (!l.length) return null; const x = agg(l); return { name: GSH[g], v: x.pct, tip: `<b>${GSH[g]}</b><br>${fmt(x.pct)} · ${l.length} con datos<br>Abiertas ${x.ab} · Sin plan ${x.spn} · Vencidas ${x.ve}`, g }; }).filter(Boolean).sort((p, q) => p.v - q.v);
+    rows = GORD.map((g) => { const l = wd.filter((u) => u.ger === g); if (!l.length) return null; const x = agg(l); const pg = pl ? pl.filter((u) => u.ger === g) : []; const pv = pg.length ? agg(pg).pct : null; return { name: GSH[g], v: x.pct, pv, tip: `<b>${GSH[g]}</b><br>${fmt(x.pct)} · ${l.length} con datos${wkTip(x.pct, pv)}<br>Abiertas ${x.ab} · Sin plan ${x.spn} · Vencidas ${x.ve}`, g }; }).filter(Boolean).sort((p, q) => p.v - q.v);
   } else {
-    rows = wd.map((u) => ({ name: label(u), num: u.num, v: u.pct, click: u.id, tip: `<b>${esc(u.name)}</b> ${u.num}<br>${fmt(u.pct)} · Abiertas ${u.ab} · Sin plan ${u.spn} · Vencidas ${u.ve}<br>Clic para ver detalle` })).sort((p, q) => p.v - q.v);
+    rows = wd.map((u) => { const q = PREV ? PREV.byKey.get(u.key) : null; const pv = q && q.n > 0 ? q.pct : null; return { name: label(u), num: u.num, v: u.pct, pv, click: u.id, tip: `<b>${esc(u.name)}</b> ${u.num}<br>${fmt(u.pct)}${wkTip(u.pct, pv)}<br>Abiertas ${u.ab} · Sin plan ${u.spn} · Vencidas ${u.ve}<br>Clic para ver detalle` }; }).sort((p, q) => p.v - q.v);
   }
   h += evolucion();
-  h += `<div class="grid2"><div class="card"><h2>% de implementación por ${S.ger === "Todas" ? "gerencia" : (S.tipo === "Codelco" ? "línea base" : "contrato")}</h2><div class="hint">Ordenado de menor a mayor${S.ger !== "Todas" ? " · clic en un contrato para ver su detalle" : " · elija una gerencia a la izquierda para ver sus contratos"}</div>${hbars(rows)}</div>
+  const wkLeg = PREV ? `<div class="hlegend"><span><i></i>Semana anterior (${ref})</span><span>▲▼ variación en puntos vs ${ref}</span></div>` : "";
+  h += `<div class="grid2"><div class="card"><h2>% de implementación por ${S.ger === "Todas" ? "gerencia" : (S.tipo === "Codelco" ? "línea base" : "contrato")}</h2><div class="hint">Ordenado de menor a mayor${S.ger !== "Todas" ? " · clic en un contrato para ver su detalle" : " · elija una gerencia a la izquierda para ver sus contratos"}</div>${wkLeg}${hbars(rows, { wk: !!PREV })}</div>
   <div class="card"><h2>% de implementación por RF</h2><div class="hint">Mismo filtro · pase el cursor sobre cada barra</div>${rfColumns(a)}
   <h2 style="margin-top:14px">Brechas sin plan y vencidas</h2><div class="hint">Los 8 con más brechas sin plan o vencidas en este filtro</div>${topBrechas(wd)}</div></div>`;
   return h;
