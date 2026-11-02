@@ -146,6 +146,18 @@ td .num{font-weight:400;color:var(--muted);font-size:11px;margin-left:5px}
 .wtab td.dlt{font-weight:600;white-space:nowrap}
 .wtab td.dlt.up{color:var(--ok)}.wtab td.dlt.down{color:var(--bad)}
 .wtab th.cur{box-shadow:inset 0 -3px 0 var(--copper)}
+.cctab td{vertical-align:middle}
+.cctab .ccn{font-weight:600;color:var(--ink)}
+.cctab .ccm{font-size:11px;color:var(--muted)}
+.cctab .bar{position:relative;height:14px;background:var(--soft);border-radius:0 4px 4px 0;min-width:120px}
+.cctab .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0}
+.cctab .bar .pv{position:absolute;top:-3px;bottom:-3px;width:3px;margin-left:-1.5px;background:#1f2a30;border-radius:1px}
+.cctab .bar .ref{position:absolute;top:-2px;bottom:-2px;width:0;border-left:1px dashed #8a949b}
+.tag{display:inline-block;font-size:10.5px;padding:1px 6px;border-radius:9px;background:#e3ecf2;color:var(--navy);font-weight:600;margin-left:6px;vertical-align:1px}
+.tag.cod{background:#efe6f5;color:#5b3a78}
+.heat td,.heat th{text-align:center;font-size:12px}
+.heat th.l,.heat td.l{text-align:left}
+.heat th.v{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;height:120px;vertical-align:bottom;padding:6px 3px;font-weight:600}
 .foot{font-size:11.5px;color:var(--muted);margin-top:14px}
 @media (max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}.grid2,.rank3{grid-template-columns:1fr}}
 @media (max-width:760px){.logo-ssb{margin-left:0}.logo-cod{height:30px}.wrap{grid-template-columns:1fr}aside{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}main{padding:12px 16px}.kpis{grid-template-columns:repeat(2,1fr)}.top .badge{margin-left:0}}
@@ -182,6 +194,7 @@ td .num{font-weight:400;color:var(--muted);font-size:11px;margin-left:5px}
   <div class="tabs" id="tabs">
     <button data-p="resumen" class="on">Resumen</button>
     <button data-p="empresa">Por empresa</button>
+    <button data-p="rf">Por RF</button>
     <button data-p="cambios" id="tabCambios" hidden>Cambios de la semana</button>
     <button data-p="matriz">Matriz RF</button>
     <button data-p="comparar">Comparar</button>
@@ -191,6 +204,7 @@ td .num{font-weight:400;color:var(--muted);font-size:11px;margin-left:5px}
   <p class="scope" id="scope"></p>
   <section id="p-resumen"></section>
   <section id="p-empresa" hidden></section>
+  <section id="p-rf" hidden></section>
   <section id="p-cambios" hidden></section>
   <section id="p-matriz" hidden></section>
   <section id="p-comparar" hidden></section>
@@ -212,14 +226,14 @@ const brTxt = (b) => b.brecha ? esc(b.brecha) : (b.req ? `<span style="color:var
 const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const dmy = (f) => f.split("-").reverse().join("-");
 const largo = (f) => { const [y, m, d] = f.split("-").map(Number); return `${d} de ${MESES[m - 1]} de ${y}`; };
-const mkUnits = (j) => j.units.map((x, i) => { const u = { id: i, key: x[0], tipo: x[1], ger: x[2], sup: x[3], name: x[4], num: x[5], rf: x[6], si: x[7], no: x[8], sr: x[9], ab: x[10], spn: x[11], ve: x[12] }; u.n = u.si + u.no; u.pct = u.n ? 100 * u.si / u.n : null; u.partial = u.sr > 0 && u.tipo === "EECC"; if (u.tipo === "Codelco" && u.name.includes("línea base gerencia")) u.name = "Codelco · " + (GSH[u.ger] || u.ger); return u; });
+const mkUnits = (j) => j.units.map((x, i) => { const u = { id: i, key: x[0], tipo: x[1], ger: x[2], sup: x[3], name: x[4], num: x[5], rf: x[6], si: x[7], no: x[8], sr: x[9], ab: x[10], spn: x[11], ve: x[12], cc: x[13] || null }; u.n = u.si + u.no; u.pct = u.n ? 100 * u.si / u.n : null; u.partial = u.sr > 0 && u.tipo === "EECC"; if (u.tipo === "Codelco" && u.name.includes("línea base gerencia")) u.name = "Codelco · " + (GSH[u.ger] || u.ger); return u; });
 async function getJSON(p) { const r = await fetch(p, { cache: "no-store" }); if (!r.ok) throw new Error(p); return r.json(); }
 // Las variaciones se calculan a 7 días: se compara con el corte más cercano a 7 días antes
 // (mínimo 5 días de diferencia). Con cortes diarios siempre es exactamente 7 días.
 const DIAS = (a, b) => Math.round((Date.parse(a) - Date.parse(b)) / 864e5);
 function refOf(f) { let best = null, bs = 1e9; for (const c of CORTES) { const d = DIAS(f, c); if (d < 5) continue; const s = Math.abs(d - 7); if (s < bs) { bs = s; best = c; } } return best; }
 function serie(f, n) { const out = [f]; let c = f; while (out.length < n) { c = refOf(c); if (!c) break; out.unshift(c); } return out; }
-async function ensureRes(f) { if (!RES[f]) { const j = await getJSON(`cortes/resumen_${f}.json`); RES[f] = { rfs: j.rfs, U: mkUnits(j) }; } }
+async function ensureRes(f) { if (!RES[f]) { const j = await getJSON(`cortes/resumen_${f}.json`); RES[f] = { rfs: j.rfs, U: mkUnits(j), ccm: j.ccm || null }; } }
 let SERIE = [];
 async function loadCorte(f) {
   const pf = refOf(f);
@@ -254,6 +268,7 @@ function match(u) {
   return (S.tipo === "Todos" || u.tipo === S.tipo) && (S.ger === "Todas" || u.ger === S.ger) && (S.sup === "Todas" || u.sup === S.sup) && (!q || (u.name + " " + u.num).toLowerCase().includes(q));
 }
 function current() { return U.filter(match); }
+function matchSinTipo(u) { const q = S.q.trim().toLowerCase(); return (S.ger === "Todas" || u.ger === S.ger) && (S.sup === "Todas" || u.sup === S.sup) && (!q || (u.name + " " + u.num).toLowerCase().includes(q)); }
 const prevAgg = () => PREV ? agg(PREV.U.filter((u) => u.n > 0 && match(u))) : null;
 function dlt(cur, prev, upGood, pts, ref) {
   if (prev == null || cur == null) return "";
@@ -504,7 +519,7 @@ const byKeyOf = (f) => RES[f].byKey || (RES[f].byKey = new Map(RES[f].U.map((u) 
 const empOrder = (list) => withData(list).sort((p, q) => GORD.indexOf(p.ger) - GORD.indexOf(q.ger) || (p.tipo === q.tipo ? 0 : p.tipo === "Codelco" ? 1 : -1) || p.name.localeCompare(q.name, "es") || String(p.num).localeCompare(String(q.num)));
 function pageEmpresa(list) {
   const L = empOrder(list);
-  if (!L.length) return `<div class="card"><div class="empty">Sin contratos con datos para este filtro.</div></div>`;
+  if (!L.length) return `<div class="card"><div class="empty">Sin contratos ni procesos con datos para este filtro.</div></div>`;
   let i = L.findIndex((x) => x.key === S.emp); if (i < 0) i = 0;
   const u = L[i]; S.emp = u.key;
   const prevU = L[(i - 1 + L.length) % L.length], nextU = L[(i + 1) % L.length];
@@ -512,14 +527,14 @@ function pageEmpresa(list) {
   let h = `<div class="card empnav"><button class="navb" data-emp="${esc(prevU.key)}" title="Anterior: ${esc(label(prevU))}" aria-label="Anterior">◀</button>
     <select id="empSel" aria-label="Empresa">${groups.map((g) => `<optgroup label="${esc(GSH[g] || g)}">${L.filter((x) => x.ger === g).map((x) => `<option value="${esc(x.key)}" ${x.key === u.key ? "selected" : ""}>${esc(label(x))}${x.num ? " · " + x.num : ""} — ${fmt(x.pct)}</option>`).join("")}</optgroup>`).join("")}</select>
     <button class="navb" data-emp="${esc(nextU.key)}" title="Siguiente: ${esc(label(nextU))}" aria-label="Siguiente">▶</button>
-    <span class="pos">${i + 1} de ${L.length} · según el filtro de la izquierda</span></div>`;
+    <span class="pos">${i + 1} de ${L.length} · EECC y procesos Codelco según gerencia, superintendencia y búsqueda de la izquierda</span></div>`;
   const upto = SERIE.slice(-8);
   const H = upto.map((f) => { const x = byKeyOf(f).get(u.key); return x && x.n > 0 ? x : null; });
   const q = PREV ? (PREV.byKey.get(u.key) || null) : null, qn = q && q.n > 0 ? q : null, ref = PREV ? dmy(PREV.f) : "";
   const rfv = (x) => RFS.map((r) => rfPct(x, r)).filter((v) => typeof v === "number");
   const low = (x) => rfv(x).filter((v) => R0(v) < 80).length;
   const k = (l, v, s, c, d) => `<div class="kpi"><div class="l">${l}</div><div class="v" style="color:${c || "var(--ink)"}">${v}</div><div class="s">${s}</div>${d || ""}</div>`;
-  h += `<div class="card" style="margin-bottom:14px"><div class="emphead"><div><h2>${esc(label(u))}</h2><div class="m">${u.num ? u.num + " · " : ""}${esc(u.ger)}${u.sup ? " · " + esc(u.sup) : ""}</div></div><button class="reset" style="width:auto;margin:0;padding:7px 12px" data-open="${u.id}">Ver brechas del contrato</button></div>
+  h += `<div class="card" style="margin-bottom:14px"><div class="emphead"><div><h2>${esc(label(u))}<span class="tag ${u.tipo === "Codelco" ? "cod" : ""}">${u.tipo === "Codelco" ? "Proceso Codelco" : "EECC"}</span></h2><div class="m">${u.num ? u.num + " · " : ""}${esc(u.ger)}${u.sup ? " · " + esc(u.sup) : ""}</div></div><button class="reset" style="width:auto;margin:0;padding:7px 12px" data-open="${u.id}">Ver brechas del contrato</button></div>
   <div class="kpis" style="margin-bottom:0">
     ${k("% implementación", fmt(u.pct), `${u.si} Sí de ${u.n}`, u.pct >= 90 ? "var(--ok)" : u.pct >= 80 ? "var(--mid)" : "var(--bad)", qn ? dlt(u.pct, qn.pct, true, true, ref) : (PREV ? `<div class="d eq">sin dato el ${ref}</div>` : ""))}
     ${k("RF bajo 80%", `${low(u)} <span style="font-size:15px;color:var(--muted);font-weight:400">de ${rfv(u).length}</span>`, "RF aplicables", low(u) ? "var(--bad)" : "", qn && dlt(low(u), low(qn), false, false, ref))}
@@ -556,6 +571,80 @@ function pageEmpresa(list) {
   return h;
 }
 
+// ---------- página por RF ----------
+const nice = (s) => (s && s === s.toUpperCase() ? s.charAt(0) + s.slice(1).toLowerCase() : s || "");
+const rfOf = (units, r) => { let si = 0, no = 0, n = 0; units.forEach((u) => { const x = u.rf[r]; if (x && x[0] + x[1] > 0) { si += x[0]; no += x[1]; n++; } }); return { si, no, n, pct: si + no ? 100 * si / (si + no) : null }; };
+const ccOf = (units, r) => { const m = new Map(); units.forEach((u) => { if (!u.cc) return; for (const k in u.cc) { if (!k.startsWith(r + "|")) continue; const x = u.cc[k]; if (x[0] + x[1] === 0) continue; const o = m.get(k) || { si: 0, no: 0, n: 0, low: 0 }; o.si += x[0]; o.no += x[1]; o.n++; if (R0(100 * x[0] / (x[0] + x[1])) < 80) o.low++; m.set(k, o); } }); m.forEach((o) => { o.pct = 100 * o.si / (o.si + o.no); }); return m; };
+function pageRF(list) {
+  const wd = withData(list);
+  const avail = RFS.map((r) => ({ r, ...rfOf(wd, r) })).filter((x) => x.n > 0);
+  if (!avail.length) return `<div class="card"><div class="empty">Sin datos para este filtro.</div></div>`;
+  if (!avail.some((x) => x.r === S.rfSel)) S.rfSel = [...avail].sort((a, b) => a.pct - b.pct)[0].r;
+  const i = avail.findIndex((x) => x.r === S.rfSel), r = S.rfSel, cur = avail[i];
+  const pr = avail[(i - 1 + avail.length) % avail.length].r, nx = avail[(i + 1) % avail.length].r;
+  const ref = PREV ? dmy(PREV.f) : "";
+  const pl = PREV ? PREV.U.filter((u) => u.n > 0 && match(u)) : null;
+  const prv = pl ? rfOf(pl, r) : null;
+  const ap = wd.filter((u) => u.rf[r] && u.rf[r][0] + u.rf[r][1] > 0);
+  const lowOf = (L) => L.filter((u) => { const x = u.rf[r]; return x && x[0] + x[1] > 0 && R0(100 * x[0] / (x[0] + x[1])) < 80; }).length;
+  const ids = new Set(list.map((u) => u.id));
+  const brs = BR.filter((b) => ids.has(b.u) && b.rf === r);
+  const bAgg = (L) => ({ ab: L.length, sp: L.filter((b) => b.sp).length, ve: L.filter((b) => b.venc).length });
+  const bc = bAgg(brs);
+  let bp = null;
+  if (PREV) { const pk = new Set(pl.map((u) => u.key)); const L = PREV.br.filter((b) => b[1] === r && pk.has(b[0])); bp = { ab: L.length, sp: L.filter((b) => b[11]).length, ve: L.filter((b) => b[10]).length }; }
+  let h = `<div class="card empnav"><button class="navb" data-rfsel="${pr}" aria-label="RF anterior">◀</button>
+    <select id="rfSel" aria-label="Riesgo de fatalidad">${avail.map((x) => `<option value="${x.r}" ${x.r === r ? "selected" : ""}>${x.r} · ${RFN[x.r]} — ${fmt(x.pct)}</option>`).join("")}</select>
+    <button class="navb" data-rfsel="${nx}" aria-label="RF siguiente">▶</button>
+    <span class="pos">${i + 1} de ${avail.length} RF con datos en este filtro</span></div>`;
+  const k = (l, v, s, c, d) => `<div class="kpi"><div class="l">${l}</div><div class="v" style="color:${c || "var(--ink)"}">${v}</div><div class="s">${s}</div>${d || ""}</div>`;
+  const nE = ap.filter((u) => u.tipo === "EECC").length, nC = ap.length - nE, lo = lowOf(ap);
+  h += `<div class="card" style="margin-bottom:14px"><div class="emphead"><div><h2>${r} · ${RFN[r]}</h2><div class="m">${scopeText(list).replace(/<[^>]+>/g, "")}</div></div><button class="reset" style="width:auto;margin:0;padding:7px 12px" data-rfbr="${r}">Ver brechas de este RF</button></div>
+  <div class="kpis" style="margin-bottom:0">
+    ${k("% implementación del RF", fmt(cur.pct), `${cur.si.toLocaleString("es-CL")} Sí de ${(cur.si + cur.no).toLocaleString("es-CL")}`, cur.pct >= 90 ? "var(--ok)" : cur.pct >= 80 ? "var(--mid)" : "var(--bad)", prv && dlt(cur.pct, prv.pct, true, true, ref))}
+    ${k("Donde aplica", ap.length, `${nE} EECC${nC ? ` · ${nC} Codelco` : ""}`, "")}
+    ${k("Bajo 80% en este RF", lo, "contratos o procesos", lo ? "var(--bad)" : "", pl && dlt(lo, lowOf(pl), false, false, ref))}
+    ${k("Brechas abiertas", bc.ab, "requisitos en «No»", "", bp && dlt(bc.ab, bp.ab, false, false, ref))}
+    ${k("Sin plan de acción", bc.sp, bc.ab ? Math.round(100 * bc.sp / bc.ab) + "% de las abiertas" : "", bc.sp ? "var(--bad)" : "", bp && dlt(bc.sp, bp.sp, false, false, ref))}
+    ${k("Vencidas", bc.ve, bc.ab ? Math.round(100 * bc.ve / bc.ab) + "% de las abiertas" : "", bc.ve ? "var(--bad)" : "", bp && dlt(bc.ve, bp.ve, false, false, ref))}
+  </div></div>`;
+  // controles críticos
+  const ccm = RES[CUR].ccm, cm = ccOf(ap, r);
+  const pcm = PREV && RES[PREV.f].ccm ? ccOf(pl.filter((u) => u.rf[r] && u.rf[r][0] + u.rf[r][1] > 0), r) : null;
+  if (!ccm || !cm.size) {
+    h += `<div class="card" style="margin-bottom:14px"><h2>Controles críticos</h2><div class="empty">Este corte no trae el detalle por control crítico. Vuelva a generar el corte con el generador actualizado para verlo.</div></div>`;
+  } else {
+    const rows = [...cm.entries()].map(([kk, o]) => { const code = kk.split("|")[1]; const bb = bAgg(brs.filter((b) => b.cc === code)); const p = pcm && pcm.get(kk); return { kk, code, o, bb, pv: p ? p.pct : null, meta: ccm[kk] || ["", ""] }; }).sort((a, b) => a.o.pct - b.o.pct);
+    const dl = (v, pv) => { if (!PREV) return ""; if (pv == null) return `<td class="zero">–</td>`; const d = Math.round((v - pv) * 10) / 10; return d === 0 ? `<td class="zero">=</td>` : `<td style="font-weight:600;color:${d > 0 ? "var(--ok)" : "var(--bad)"}">${d > 0 ? "▲" : "▼"} ${Math.abs(d).toFixed(1).replace(".", ",")}</td>`; };
+    h += `<div class="card" style="margin-bottom:14px"><h2>Controles críticos</h2><div class="hint">% Sí / (Sí + No) de los requisitos de cada control, ordenado de menor a mayor${PREV ? ` · marca negra: valor del ${ref}` : ""} · líneas punteadas: 80% y 90%</div>
+    <div class="tablewrap" style="max-height:none"><table class="cctab"><thead><tr><th class="l">Control crítico</th><th class="l" style="width:34%">Implementación</th><th>%</th>${PREV ? "<th>Δ</th>" : ""}<th data-tip="Contratos o procesos donde el control tiene requisitos aplicables">Aplica en</th><th data-tip="Contratos o procesos con este control bajo 80%">&lt; 80%</th><th>Abiertas</th><th>Sin plan</th><th>Vencidas</th></tr></thead><tbody>
+    ${rows.map((x) => `<tr data-tip="<b>${esc(x.code)} · ${esc(nice(x.meta[0]))}</b><br>Sí ${x.o.si} · No ${x.o.no}"><td class="l"><span class="ccn">${esc(x.code)}</span> ${esc(nice(x.meta[0]))}<div class="ccm">${esc(nice(x.meta[1]))}</div></td><td class="l"><div class="bar"><i style="width:${x.o.pct}%;background:${col(x.o.pct)}"></i><span class="ref" style="left:80%"></span><span class="ref" style="left:90%"></span>${x.pv != null ? `<span class="pv" style="left:${x.pv}%"></span>` : ""}</div></td><td class="${cls(x.o.pct)}">${fmt(x.o.pct)}</td>${dl(x.o.pct, x.pv)}<td>${x.o.n}</td><td class="${x.o.low ? "alert" : "zero"}">${x.o.low}</td><td>${x.bb.ab}</td><td class="${x.bb.sp ? "alert" : "zero"}">${x.bb.sp}</td><td class="${x.bb.ve ? "alert" : "zero"}">${x.bb.ve}</td></tr>`).join("")}
+    </tbody></table></div></div>`;
+  }
+  // evolución + por área
+  const byGer = S.ger === "Todas";
+  const areaOf = (u) => (byGer ? u.ger : u.sup || "(sin superintendencia)");
+  const areaName = (a) => (byGer ? GSH[a] || a : a);
+  const areas = [...new Set(ap.map(areaOf))];
+  const arows = areas.map((a) => { const L = ap.filter((u) => areaOf(u) === a); const x = rfOf(L, r); const pL = pl ? pl.filter((u) => areaOf(u) === a) : []; const pv = pL.length ? rfOf(pL, r).pct : null; const bb = bAgg(brs.filter((b) => areaOf(U[b.u]) === a)); return { name: areaName(a), v: x.pct, pv, a, L, tip: `<b>${esc(areaName(a))}</b><br>${r}: ${fmt(x.pct)} · ${x.n} con datos${wkTip(x.pct, pv)}<br>Abiertas ${bb.ab} · Sin plan ${bb.sp} · Vencidas ${bb.ve}` }; }).sort((p, q) => p.v - q.v);
+  const ev = SERIE.map((f) => rfOf(RES[f].U.filter((u) => u.n > 0 && match(u)), r).pct);
+  const wkLeg = PREV ? `<div class="hlegend"><span><i></i>Valor del ${ref}</span><span>▲▼ variación en puntos vs ${ref}</span></div>` : "";
+  h += `<div class="grid2" style="margin-bottom:14px"><div class="card"><h2>Desempeño por ${byGer ? "gerencia" : "superintendencia / dirección"}</h2><div class="hint">${r} · ordenado de menor a mayor${byGer ? " · elija una gerencia a la izquierda para ver sus superintendencias" : ""}</div>${wkLeg}${hbars(arows, { wk: !!PREV })}</div>
+  <div class="card"><h2>Evolución del ${r}</h2>${SERIE.length >= 2 ? `<div class="hint">Un punto cada 7 días · mismo filtro</div>${lineChart([{ name: r + " · " + RFN[r], color: "var(--s1)", vals: ev }], SERIE.map((f) => dmy(f).slice(0, 5)), true)}` : `<div class="hint">Aún no hay un corte de al menos 5 días antes del ${dmy(CUR)}. Cuando lo haya, aquí se verá la tendencia semana a semana de este RF.</div>`}</div></div>`;
+  // mapa de calor control x área
+  if (ccm && cm.size && areas.length > 1) {
+    const ccs = [...cm.keys()].sort();
+    const ar = arows.map((x) => ({ ...x, cm: ccOf(x.L, r) }));
+    h += `<div class="card" style="margin-bottom:14px"><h2>Controles críticos por ${byGer ? "gerencia" : "superintendencia"}</h2><div class="hint">% de cada control en cada área · pase el cursor para ver el detalle</div><div class="tablewrap" style="max-height:none"><table class="heat"><thead><tr><th class="l">Control crítico</th>${ar.map((x) => `<th class="v" title="${esc(x.name)}">${esc(x.name.length > 28 ? x.name.slice(0, 27) + "…" : x.name)}</th>`).join("")}<th>Total</th></tr></thead><tbody>
+    ${ccs.map((kk) => { const code = kk.split("|")[1]; const nm = nice((ccm[kk] || [""])[0]); return `<tr><td class="l" title="${esc(nm)}"><b>${esc(code)}</b> <span style="color:var(--ink2)">${esc(nm.length > 48 ? nm.slice(0, 47) + "…" : nm)}</span></td>${ar.map((x) => { const o = x.cm.get(kk); return o ? `<td class="${cls(o.pct)}" data-tip="<b>${esc(x.name)}</b><br>${esc(code)} · ${esc(nm)}<br>${fmt(o.pct)} · Sí ${o.si} / No ${o.no} · ${o.n} con datos">${Math.round(o.pct)}</td>` : `<td class="na">–</td>`; }).join("")}<td class="${cls(cm.get(kk).pct)}">${Math.round(cm.get(kk).pct)}</td></tr>`; }).join("")}
+    </tbody></table></div></div>`;
+  }
+  // contratos y procesos con menor implementación en el RF
+  const worst = ap.map((u) => { const x = u.rf[r]; const v = 100 * x[0] / (x[0] + x[1]); const q = PREV ? PREV.byKey.get(u.key) : null; const qx = q && q.rf[r]; const pv = qx && qx[0] + qx[1] > 0 ? 100 * qx[0] / (qx[0] + qx[1]) : null; const bb = bAgg(brs.filter((b) => b.u === u.id)); return { u, v, pv, bb }; }).sort((a, b) => a.v - b.v).slice(0, 15);
+  h += `<div class="card"><h2>Menor implementación en ${r}</h2><div class="hint">Los 15 contratos o procesos más bajos en este RF · clic para ver el detalle</div><table class="rk"><tbody>${worst.map((x, j) => `<tr data-open="${x.u.id}" style="cursor:pointer"><td class="r">${j + 1}</td><td><div class="e">${esc(label(x.u))}${x.u.tipo === "Codelco" ? '<span class="tag cod">Codelco</span>' : ""}</div><div class="m">${x.u.num ? x.u.num + " · " : ""}${GSH[x.u.ger] || x.u.ger}</div></td><td class="val ${cls(x.v)}">${fmt(x.v)}</td><td class="val" style="font-size:12px;color:${x.pv == null ? "var(--muted)" : x.v - x.pv > 0.05 ? "var(--ok)" : x.v - x.pv < -0.05 ? "var(--bad)" : "var(--muted)"}">${PREV ? (x.pv == null ? "nuevo" : Math.abs(x.v - x.pv) < 0.05 ? "=" : (x.v > x.pv ? "▲ " : "▼ ") + Math.abs(x.v - x.pv).toFixed(1).replace(".", ",")) : ""}</td><td class="val">${x.bb.sp ? `<span class="pill sp">${x.bb.sp} sin plan</span>` : `<span class="m">0 sin plan</span>`}</td><td class="val">${x.bb.ve ? `<span class="pill ve">${x.bb.ve} vencidas</span>` : `<span class="m">0 vencidas</span>`}</td></tr>`).join("")}</tbody></table></div>`;
+  return h;
+}
+
 // ---------- drawer ----------
 function openDrawer(id) {
   const u = U[id];
@@ -581,6 +670,8 @@ document.addEventListener("click", (e) => {
   const rm = e.target.closest("[data-rm]"); if (rm) { S.cmp = S.cmp.filter((x) => x !== +rm.dataset.rm); renderPage(); return; }
   const ad = e.target.closest("[data-add]"); if (ad) { if (S.cmp.length < 4) S.cmp.push(+ad.dataset.add); renderPage(); return; }
   const ac = e.target.closest("[data-addcmp]"); if (ac) { S.cmpInit = true; const id = +ac.dataset.addcmp; if (!S.cmp.includes(id)) { if (S.cmp.length >= 4) S.cmp.shift(); S.cmp.push(id); } $("drawer").classList.remove("open"); S.page = "comparar"; document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x.dataset.p === "comparar")); renderPage(); return; }
+  const rs = e.target.closest("[data-rfsel]"); if (rs) { S.rfSel = rs.dataset.rfsel; renderPage(); return; }
+  const rb = e.target.closest("[data-rfbr]"); if (rb) { S.brF = { rf: rb.dataset.rfbr, est: "", q: "", pg: 0 }; S.page = "brechas"; document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x.dataset.p === "brechas")); renderPage(); window.scrollTo({ top: 0 }); return; }
   const em = e.target.closest("[data-emp]"); if (em) { S.emp = em.dataset.emp; renderPage(); return; }
   const ge = e.target.closest("[data-gotoemp]"); if (ge) { S.emp = U[+ge.dataset.gotoemp].key; $("drawer").classList.remove("open"); S.page = "empresa"; document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x.dataset.p === "empresa")); renderPage(); window.scrollTo({ top: 0 }); return; }
   if (e.target.id === "bPrev") { S.brF.pg--; renderPage(); } if (e.target.id === "bNext") { S.brF.pg++; renderPage(); }
@@ -595,15 +686,17 @@ document.addEventListener("change", (e) => {
   if (e.target.id === "bRF") { S.brF.rf = e.target.value; S.brF.pg = 0; renderPage(); }
   if (e.target.id === "bEst") { S.brF.est = e.target.value; S.brF.pg = 0; renderPage(); }
   if (e.target.id === "empSel") { S.emp = e.target.value; renderPage(); }
+  if (e.target.id === "rfSel") { S.rfSel = e.target.value; renderPage(); }
 });
 
 function renderPage() {
   const list = current();
-  $("scope").innerHTML = scopeText(list);
-  ["resumen", "empresa", "cambios", "matriz", "comparar", "ranking", "brechas"].forEach((p) => { $("p-" + p).hidden = p !== S.page; });
+  if (S.page === "empresa") { const t = S.tipo; S.tipo = "Todos"; $("scope").innerHTML = scopeText(U.filter(matchSinTipo)); S.tipo = t; } else $("scope").innerHTML = scopeText(list);
+  ["resumen", "empresa", "rf", "cambios", "matriz", "comparar", "ranking", "brechas"].forEach((p) => { $("p-" + p).hidden = p !== S.page; });
   const el = $("p-" + S.page);
   if (S.page === "resumen") el.innerHTML = pageResumen(list);
-  if (S.page === "empresa") el.innerHTML = pageEmpresa(list);
+  if (S.page === "empresa") el.innerHTML = pageEmpresa(U.filter(matchSinTipo));
+  if (S.page === "rf") el.innerHTML = pageRF(list);
   if (S.page === "cambios") el.innerHTML = pageCambios(list);
   if (S.page === "matriz") el.innerHTML = pageMatriz(list);
   if (S.page === "comparar") el.innerHTML = pageComparar(list);
