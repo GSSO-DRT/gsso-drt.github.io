@@ -133,6 +133,19 @@ td .num{font-weight:400;color:var(--muted);font-size:11px;margin-left:5px}
 .minik b{display:block;font-size:20px}
 .minik span{font-size:11.5px;color:var(--muted)}
 .empty{color:var(--muted);font-size:13px;padding:18px;text-align:center}
+.empnav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.empnav select{flex:1 1 320px;width:auto;min-width:0;font-weight:600}
+.empnav .navb{border:1px solid #cfd6db;background:#fff;border-radius:5px;padding:6px 12px;cursor:pointer;color:var(--navy);font-weight:700}
+.empnav .navb:hover{border-color:var(--navy);background:#e3ecf2}
+.empnav .pos{font-size:12px;color:var(--muted);white-space:nowrap}
+.emphead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.emphead h2{font-size:19px;margin:0;font-weight:700}
+.emphead .m{font-size:12.5px;color:var(--muted);margin-top:3px}
+.wtab td,.wtab th{text-align:center}
+.wtab td.l,.wtab th.l{text-align:left}
+.wtab td.dlt{font-weight:600;white-space:nowrap}
+.wtab td.dlt.up{color:var(--ok)}.wtab td.dlt.down{color:var(--bad)}
+.wtab th.cur{box-shadow:inset 0 -3px 0 var(--copper)}
 .foot{font-size:11.5px;color:var(--muted);margin-top:14px}
 @media (max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}.grid2,.rank3{grid-template-columns:1fr}}
 @media (max-width:760px){.logo-ssb{margin-left:0}.logo-cod{height:30px}.wrap{grid-template-columns:1fr}aside{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}main{padding:12px 16px}.kpis{grid-template-columns:repeat(2,1fr)}.top .badge{margin-left:0}}
@@ -168,6 +181,7 @@ td .num{font-weight:400;color:var(--muted);font-size:11px;margin-left:5px}
 <main>
   <div class="tabs" id="tabs">
     <button data-p="resumen" class="on">Resumen</button>
+    <button data-p="empresa">Por empresa</button>
     <button data-p="cambios" id="tabCambios" hidden>Cambios de la semana</button>
     <button data-p="matriz">Matriz RF</button>
     <button data-p="comparar">Comparar</button>
@@ -176,6 +190,7 @@ td .num{font-weight:400;color:var(--muted);font-size:11px;margin-left:5px}
   </div>
   <p class="scope" id="scope"></p>
   <section id="p-resumen"></section>
+  <section id="p-empresa" hidden></section>
   <section id="p-cambios" hidden></section>
   <section id="p-matriz" hidden></section>
   <section id="p-comparar" hidden></section>
@@ -475,6 +490,63 @@ function pageBrechas(list) {
   return h;
 }
 
+// ---------- página por empresa ----------
+const byKeyOf = (f) => RES[f].byKey || (RES[f].byKey = new Map(RES[f].U.map((u) => [u.key, u])));
+const empOrder = (list) => withData(list).sort((p, q) => GORD.indexOf(p.ger) - GORD.indexOf(q.ger) || (p.tipo === q.tipo ? 0 : p.tipo === "Codelco" ? 1 : -1) || p.name.localeCompare(q.name, "es") || String(p.num).localeCompare(String(q.num)));
+function pageEmpresa(list) {
+  const L = empOrder(list);
+  if (!L.length) return `<div class="card"><div class="empty">Sin contratos con datos para este filtro.</div></div>`;
+  let i = L.findIndex((x) => x.key === S.emp); if (i < 0) i = 0;
+  const u = L[i]; S.emp = u.key;
+  const prevU = L[(i - 1 + L.length) % L.length], nextU = L[(i + 1) % L.length];
+  const groups = [...new Set(L.map((x) => x.ger))];
+  let h = `<div class="card empnav"><button class="navb" data-emp="${esc(prevU.key)}" title="Anterior: ${esc(label(prevU))}" aria-label="Anterior">◀</button>
+    <select id="empSel" aria-label="Empresa">${groups.map((g) => `<optgroup label="${esc(GSH[g] || g)}">${L.filter((x) => x.ger === g).map((x) => `<option value="${esc(x.key)}" ${x.key === u.key ? "selected" : ""}>${esc(label(x))}${x.num ? " · " + x.num : ""} — ${fmt(x.pct)}</option>`).join("")}</optgroup>`).join("")}</select>
+    <button class="navb" data-emp="${esc(nextU.key)}" title="Siguiente: ${esc(label(nextU))}" aria-label="Siguiente">▶</button>
+    <span class="pos">${i + 1} de ${L.length} · según el filtro de la izquierda</span></div>`;
+  const upto = CORTES.slice(0, CORTES.indexOf(CUR) + 1).slice(-8);
+  const H = upto.map((f) => { const x = byKeyOf(f).get(u.key); return x && x.n > 0 ? x : null; });
+  const q = PREV ? (PREV.byKey.get(u.key) || null) : null, qn = q && q.n > 0 ? q : null, ref = PREV ? dmy(PREV.f) : "";
+  const rfv = (x) => RFS.map((r) => rfPct(x, r)).filter((v) => typeof v === "number");
+  const low = (x) => rfv(x).filter((v) => R0(v) < 80).length;
+  const k = (l, v, s, c, d) => `<div class="kpi"><div class="l">${l}</div><div class="v" style="color:${c || "var(--ink)"}">${v}</div><div class="s">${s}</div>${d || ""}</div>`;
+  h += `<div class="card" style="margin-bottom:14px"><div class="emphead"><div><h2>${esc(label(u))}</h2><div class="m">${u.num ? u.num + " · " : ""}${esc(u.ger)}${u.sup ? " · " + esc(u.sup) : ""}</div></div><button class="reset" style="width:auto;margin:0;padding:7px 12px" data-open="${u.id}">Ver brechas del contrato</button></div>
+  <div class="kpis" style="margin-bottom:0">
+    ${k("% implementación", fmt(u.pct), `${u.si} Sí de ${u.n}`, u.pct >= 90 ? "var(--ok)" : u.pct >= 80 ? "var(--mid)" : "var(--bad)", qn ? dlt(u.pct, qn.pct, true, true, ref) : (PREV ? `<div class="d eq">sin dato el ${ref}</div>` : ""))}
+    ${k("RF bajo 80%", `${low(u)} <span style="font-size:15px;color:var(--muted);font-weight:400">de ${rfv(u).length}</span>`, "RF aplicables", low(u) ? "var(--bad)" : "", qn && dlt(low(u), low(qn), false, false, ref))}
+    ${k("Brechas abiertas", u.ab, "requisitos en «No»", "", qn && dlt(u.ab, qn.ab, false, false, ref))}
+    ${k("Sin plan de acción", u.spn, u.ab ? Math.round(100 * u.spn / u.ab) + "% de las abiertas" : "", u.spn ? "var(--bad)" : "", qn && dlt(u.spn, qn.spn, false, false, ref))}
+    ${k("Vencidas", u.ve, u.ab ? Math.round(100 * u.ve / u.ab) + "% de las abiertas" : "", u.ve ? "var(--bad)" : "", qn && dlt(u.ve, qn.ve, false, false, ref))}
+    ${k("Cortes con datos", H.filter(Boolean).length, `de los últimos ${upto.length}`, "")}
+  </div>${u.partial ? `<p class="foot" style="margin:8px 0 0">* Línea base incompleta: ${u.sr} requisitos sin responder.</p>` : ""}</div>`;
+  const labels = upto.map((f) => dmy(f).slice(0, 5));
+  if (upto.length >= 2) {
+    const leg = (c, t) => `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;font-size:12px;color:var(--ink2)"><i style="width:10px;height:10px;border-radius:50%;background:${c}"></i>${t}</span>`;
+    h += `<div class="grid2" style="margin-bottom:14px"><div class="card"><h2>Evolución del % de implementación</h2><div class="hint">Últimos ${upto.length} cortes semanales</div>${lineChart([{ name: "% implementación", color: "var(--s1)", vals: H.map((x) => (x ? x.pct : null)) }], labels, true)}</div>
+    <div class="card"><h2>Evolución de brechas</h2><div class="hint">${leg("var(--s3)", "Abiertas")}${leg("var(--s2)", "Sin plan")}${leg("var(--s1)", "Vencidas")}</div>${lineChart([{ name: "Abiertas", color: "var(--s3)", vals: H.map((x) => (x ? x.ab : null)) }, { name: "Sin plan", color: "var(--s2)", vals: H.map((x) => (x ? x.spn : null)) }, { name: "Vencidas", color: "var(--s1)", vals: H.map((x) => (x ? x.ve : null)) }], labels, false)}</div></div>`;
+  } else {
+    h += `<div class="card" style="margin-bottom:14px"><h2>Evolución semanal</h2><div class="hint">Primer corte registrado (${dmy(CUR)}). Desde el próximo corte aquí se verá la tendencia de esta empresa semana a semana.</div></div>`;
+  }
+  // RF x semanas
+  const rfs = RFS.filter((r) => H.some((x) => x && typeof rfPct(x, r) === "number") || typeof rfPct(u, r) === "string");
+  const cellv = (x, r) => { if (!x) return `<td class="na">–</td>`; const v = rfPct(x, r); if (v === "SR") return `<td class="sr">SR</td>`; return typeof v === "number" ? `<td class="${cls(v)}">${Math.round(v)}</td>` : `<td class="na">–</td>`; };
+  const dcell = (a, b) => { if (typeof a !== "number" || typeof b !== "number") return `<td class="zero">${typeof a === "number" && b == null ? "nuevo" : "–"}</td>`; const d = Math.round((a - b) * 10) / 10; return d === 0 ? `<td class="zero">=</td>` : `<td class="dlt ${d > 0 ? "up" : "down"}">${d > 0 ? "▲" : "▼"} ${Math.abs(d).toFixed(1).replace(".", ",")}</td>`; };
+  const pH = H.length >= 2 ? H[H.length - 2] : null;
+  h += `<div class="card" style="margin-bottom:14px"><h2>Implementación por RF, semana a semana</h2><div class="hint">% Sí / (Sí + No) de cada RF en cada corte${PREV ? ` · Δ: variación en puntos vs ${ref}` : ""}</div><div class="tablewrap" style="max-height:none"><table class="wtab"><thead><tr><th class="l">RF</th>${upto.map((f, j) => `<th class="${j === upto.length - 1 ? "cur" : ""}">${dmy(f).slice(0, 5)}</th>`).join("")}${PREV ? "<th>Δ sem.</th>" : ""}</tr></thead><tbody>
+  ${rfs.map((r) => `<tr><td class="l"><b>${r}</b> <span style="color:var(--muted)">${RFN[r]}</span></td>${H.map((x) => cellv(x, r)).join("")}${PREV ? dcell(rfPct(u, r), pH ? rfPct(pH, r) : null) : ""}</tr>`).join("")}
+  <tr class="tot"><td class="l">% total</td>${H.map((x) => `<td>${x ? fmt(x.pct) : "–"}</td>`).join("")}${PREV ? `<td>${pH ? (() => { const d = Math.round((u.pct - pH.pct) * 10) / 10; return d === 0 ? "=" : (d > 0 ? "▲ " : "▼ ") + Math.abs(d).toFixed(1).replace(".", ","); })() : "nuevo"}</td>` : ""}</tr></tbody></table></div></div>`;
+  // brechas de la semana
+  if (PREV) {
+    const cur = BR.filter((b) => b.key === u.key), prv = PREV.br.filter((b) => b[0] === u.key);
+    const ck = new Set(cur.map((b) => b.rid)), pk = new Set(prv.map((b) => b[2]));
+    const nuevas = cur.filter((b) => !pk.has(b.rid)), cerr = prv.filter((b) => !ck.has(b[2]));
+    const lst = (t, Lx, f, c) => `<div class="card"><h2>${t} <span style="color:${c};font-weight:700">${Lx.length}</span></h2>${Lx.length ? `<div class="tablewrap" style="max-height:340px"><table class="btab"><thead><tr><th>RF</th><th class="l">Brecha</th><th class="l">Plan de acción</th></tr></thead><tbody>${Lx.slice(0, 100).map(f).join("")}</tbody></table></div>` : `<div class="empty">Sin casos.</div>`}</div>`;
+    h += `<div class="grid2">${lst("Brechas cerradas esta semana", cerr, (b) => `<tr><td class="c">${b[1]}<br><span style="color:var(--muted);font-size:11px">${esc(b[3])}</span></td><td>${b[5] ? esc(b[5]) : esc(b[12])}</td><td>${esc(b[6]) || "—"}</td></tr>`, "var(--ok)")}
+    ${lst("Brechas nuevas esta semana", nuevas, (b) => `<tr><td class="c">${b.rf}<br><span style="color:var(--muted);font-size:11px">${esc(b.cc)}</span></td><td>${brTxt(b)}</td><td>${b.plan ? esc(b.plan) : '<span class="pill sp">Sin plan</span>'}</td></tr>`, nuevas.length ? "var(--bad)" : "var(--muted)")}</div>`;
+  }
+  return h;
+}
+
 // ---------- drawer ----------
 function openDrawer(id) {
   const u = U[id];
@@ -486,7 +558,7 @@ function openDrawer(id) {
   h += `<h2 style="font-size:14px">Implementación por RF</h2>${rfColumns(u)}`;
   h += `<h2 style="font-size:14px;margin-top:12px">Brechas abiertas (${bl.length})</h2>`;
   h += bl.length ? `<table class="btab"><thead><tr><th>RF</th><th class="l">Brecha</th><th class="l">Plan · responsable</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>${bl.map((b) => `<tr><td class="c">${b.rf}<br><span style="color:var(--muted);font-size:11px">${esc(b.cc)}</span></td><td>${brTxt(b)}</td><td>${b.plan ? esc(b.plan) : '<span class="pill sp">Sin plan</span>'}${b.resp ? `<br><span style="color:var(--muted);font-size:11px">${esc(b.resp)}</span>` : ""}</td><td class="c">${b.fecha ? b.fecha.split("-").reverse().join("-") : "—"}</td><td class="c">${b.venc ? '<span class="pill ve">Vencida</span>' : `<span class="pill ep">${esc(b.est || "Abierta")}</span>`}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Sin brechas abiertas.</div>`;
-  h += `<p style="margin-top:12px"><button class="reset" style="width:auto;padding:7px 12px" data-addcmp="${id}">Agregar a comparación</button></p>`;
+  h += `<p style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">${u.n > 0 ? `<button class="reset" style="width:auto;margin:0;padding:7px 12px" data-gotoemp="${id}">Ver avance semanal</button>` : ""}<button class="reset" style="width:auto;margin:0;padding:7px 12px" data-addcmp="${id}">Agregar a comparación</button></p>`;
   $("dBody").innerHTML = h;
   $("drawer").classList.add("open");
 }
@@ -500,6 +572,8 @@ document.addEventListener("click", (e) => {
   const rm = e.target.closest("[data-rm]"); if (rm) { S.cmp = S.cmp.filter((x) => x !== +rm.dataset.rm); renderPage(); return; }
   const ad = e.target.closest("[data-add]"); if (ad) { if (S.cmp.length < 4) S.cmp.push(+ad.dataset.add); renderPage(); return; }
   const ac = e.target.closest("[data-addcmp]"); if (ac) { S.cmpInit = true; const id = +ac.dataset.addcmp; if (!S.cmp.includes(id)) { if (S.cmp.length >= 4) S.cmp.shift(); S.cmp.push(id); } $("drawer").classList.remove("open"); S.page = "comparar"; document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x.dataset.p === "comparar")); renderPage(); return; }
+  const em = e.target.closest("[data-emp]"); if (em) { S.emp = em.dataset.emp; renderPage(); return; }
+  const ge = e.target.closest("[data-gotoemp]"); if (ge) { S.emp = U[+ge.dataset.gotoemp].key; $("drawer").classList.remove("open"); S.page = "empresa"; document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x.dataset.p === "empresa")); renderPage(); window.scrollTo({ top: 0 }); return; }
   if (e.target.id === "bPrev") { S.brF.pg--; renderPage(); } if (e.target.id === "bNext") { S.brF.pg++; renderPage(); }
   if (!e.target.closest(".picker")) { const l = $("cmpL"); if (l) l.hidden = true; }
 });
@@ -511,14 +585,16 @@ document.addEventListener("focusin", (e) => { if (e.target.id === "cmpQ") { cons
 document.addEventListener("change", (e) => {
   if (e.target.id === "bRF") { S.brF.rf = e.target.value; S.brF.pg = 0; renderPage(); }
   if (e.target.id === "bEst") { S.brF.est = e.target.value; S.brF.pg = 0; renderPage(); }
+  if (e.target.id === "empSel") { S.emp = e.target.value; renderPage(); }
 });
 
 function renderPage() {
   const list = current();
   $("scope").innerHTML = scopeText(list);
-  ["resumen", "cambios", "matriz", "comparar", "ranking", "brechas"].forEach((p) => { $("p-" + p).hidden = p !== S.page; });
+  ["resumen", "empresa", "cambios", "matriz", "comparar", "ranking", "brechas"].forEach((p) => { $("p-" + p).hidden = p !== S.page; });
   const el = $("p-" + S.page);
   if (S.page === "resumen") el.innerHTML = pageResumen(list);
+  if (S.page === "empresa") el.innerHTML = pageEmpresa(list);
   if (S.page === "cambios") el.innerHTML = pageCambios(list);
   if (S.page === "matriz") el.innerHTML = pageMatriz(list);
   if (S.page === "comparar") el.innerHTML = pageComparar(list);
