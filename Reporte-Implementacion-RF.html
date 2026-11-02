@@ -196,7 +196,7 @@ td .num{font-weight:400;color:var(--muted);font-size:11px;margin-left:5px}
   <section id="p-comparar" hidden></section>
   <section id="p-ranking" hidden></section>
   <section id="p-brechas" hidden></section>
-  <p class="foot">Valores obtenidos el <span id="corte2"></span> (corte semanal: lunes 16:00 h), considerando los controles críticos definidos como transversales. Solo registros vigentes (Existencia = 1). Brechas abiertas: requisitos en «No» no cerrados · sin plan: sin plan de acción · vencidas: fecha de cierre pasada o «Fuera de Plazo». * línea base incompleta (requisitos sin responder).</p>
+  <p class="foot">Valores obtenidos el <span id="corte2"></span> (actualización diaria; las variaciones ▲▼ comparan con el corte de 7 días antes), considerando los controles críticos definidos como transversales. Solo registros vigentes (Existencia = 1). Brechas abiertas: requisitos en «No» no cerrados · sin plan: sin plan de acción · vencidas: fecha de cierre pasada o «Fuera de Plazo». * línea base incompleta (requisitos sin responder).</p>
 </main>
 </div>
 <div class="drawer" id="drawer"><header><div><h2 id="dTitle"></h2><div class="hint" id="dSub"></div></div><button class="x" id="dClose" aria-label="Cerrar">✕</button></header><div class="body" id="dBody"></div></div>
@@ -214,8 +214,17 @@ const dmy = (f) => f.split("-").reverse().join("-");
 const largo = (f) => { const [y, m, d] = f.split("-").map(Number); return `${d} de ${MESES[m - 1]} de ${y}`; };
 const mkUnits = (j) => j.units.map((x, i) => { const u = { id: i, key: x[0], tipo: x[1], ger: x[2], sup: x[3], name: x[4], num: x[5], rf: x[6], si: x[7], no: x[8], sr: x[9], ab: x[10], spn: x[11], ve: x[12] }; u.n = u.si + u.no; u.pct = u.n ? 100 * u.si / u.n : null; u.partial = u.sr > 0 && u.tipo === "EECC"; if (u.tipo === "Codelco" && u.name.includes("línea base gerencia")) u.name = "Codelco · " + (GSH[u.ger] || u.ger); return u; });
 async function getJSON(p) { const r = await fetch(p, { cache: "no-store" }); if (!r.ok) throw new Error(p); return r.json(); }
+// Las variaciones se calculan a 7 días: se compara con el corte más cercano a 7 días antes
+// (mínimo 5 días de diferencia). Con cortes diarios siempre es exactamente 7 días.
+const DIAS = (a, b) => Math.round((Date.parse(a) - Date.parse(b)) / 864e5);
+function refOf(f) { let best = null, bs = 1e9; for (const c of CORTES) { const d = DIAS(f, c); if (d < 5) continue; const s = Math.abs(d - 7); if (s < bs) { bs = s; best = c; } } return best; }
+function serie(f, n) { const out = [f]; let c = f; while (out.length < n) { c = refOf(c); if (!c) break; out.unshift(c); } return out; }
+async function ensureRes(f) { if (!RES[f]) { const j = await getJSON(`cortes/resumen_${f}.json`); RES[f] = { rfs: j.rfs, U: mkUnits(j) }; } }
+let SERIE = [];
 async function loadCorte(f) {
-  const i = CORTES.indexOf(f), pf = i > 0 ? CORTES[i - 1] : null;
+  const pf = refOf(f);
+  SERIE = serie(f, 12);
+  await Promise.all(SERIE.map(ensureRes));
   if (!BRC[f]) BRC[f] = (await getJSON(`cortes/brechas_${f}.json`)).br;
   if (pf && !BRC[pf]) BRC[pf] = (await getJSON(`cortes/brechas_${pf}.json`)).br;
   CUR = f; RFS = RES[f].rfs; U = RES[f].U;
@@ -331,12 +340,12 @@ function lineChart(series, labels, pct) {
   return s + `</svg>`;
 }
 function evolucion() {
-  const upto = CORTES.slice(0, CORTES.indexOf(CUR) + 1).slice(-12);
+  const upto = SERIE;
   const ag = upto.map((f) => agg(RES[f].U.filter((u) => u.n > 0 && match(u))));
   const labels = upto.map((f) => dmy(f).slice(0, 5));
-  if (upto.length < 2) return `<div class="card" style="margin-bottom:14px"><h2>Evolución semanal</h2><div class="hint">Primer corte registrado (${dmy(CUR)}). Desde el próximo corte (lunes 16:00 h) aquí se verá la tendencia del % de implementación y de las brechas para el filtro seleccionado.</div></div>`;
+  if (upto.length < 2) return `<div class="card" style="margin-bottom:14px"><h2>Evolución semanal</h2><div class="hint">Aún no hay un corte de al menos 5 días antes del ${dmy(CUR)}. Cuando lo haya, aquí se verá la tendencia semana a semana (un punto cada 7 días) del % de implementación y de las brechas para el filtro seleccionado.</div></div>`;
   const leg = (c, t) => `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;font-size:12px;color:var(--ink2)"><i style="width:10px;height:10px;border-radius:50%;background:${c}"></i>${t}</span>`;
-  return `<div class="grid2" style="margin-bottom:14px"><div class="card"><h2>Evolución del % de implementación</h2><div class="hint">Últimos ${upto.length} cortes semanales · mismo filtro</div>${lineChart([{ name: "% implementación", color: "var(--s1)", vals: ag.map((x) => x.pct) }], labels, true)}</div>
+  return `<div class="grid2" style="margin-bottom:14px"><div class="card"><h2>Evolución del % de implementación</h2><div class="hint">Un punto cada 7 días · últimas ${upto.length} semanas · mismo filtro</div>${lineChart([{ name: "% implementación", color: "var(--s1)", vals: ag.map((x) => x.pct) }], labels, true)}</div>
   <div class="card"><h2>Evolución de brechas</h2><div class="hint">${leg("var(--s2)", "Sin plan de acción")}${leg("var(--s1)", "Vencidas")}</div>${lineChart([{ name: "Sin plan de acción", color: "var(--s2)", vals: ag.map((x) => x.spn) }, { name: "Vencidas", color: "var(--s1)", vals: ag.map((x) => x.ve) }], labels, false)}</div></div>`;
 }
 function pageCambios(list) {
@@ -504,7 +513,7 @@ function pageEmpresa(list) {
     <select id="empSel" aria-label="Empresa">${groups.map((g) => `<optgroup label="${esc(GSH[g] || g)}">${L.filter((x) => x.ger === g).map((x) => `<option value="${esc(x.key)}" ${x.key === u.key ? "selected" : ""}>${esc(label(x))}${x.num ? " · " + x.num : ""} — ${fmt(x.pct)}</option>`).join("")}</optgroup>`).join("")}</select>
     <button class="navb" data-emp="${esc(nextU.key)}" title="Siguiente: ${esc(label(nextU))}" aria-label="Siguiente">▶</button>
     <span class="pos">${i + 1} de ${L.length} · según el filtro de la izquierda</span></div>`;
-  const upto = CORTES.slice(0, CORTES.indexOf(CUR) + 1).slice(-8);
+  const upto = SERIE.slice(-8);
   const H = upto.map((f) => { const x = byKeyOf(f).get(u.key); return x && x.n > 0 ? x : null; });
   const q = PREV ? (PREV.byKey.get(u.key) || null) : null, qn = q && q.n > 0 ? q : null, ref = PREV ? dmy(PREV.f) : "";
   const rfv = (x) => RFS.map((r) => rfPct(x, r)).filter((v) => typeof v === "number");
@@ -517,22 +526,22 @@ function pageEmpresa(list) {
     ${k("Brechas abiertas", u.ab, "requisitos en «No»", "", qn && dlt(u.ab, qn.ab, false, false, ref))}
     ${k("Sin plan de acción", u.spn, u.ab ? Math.round(100 * u.spn / u.ab) + "% de las abiertas" : "", u.spn ? "var(--bad)" : "", qn && dlt(u.spn, qn.spn, false, false, ref))}
     ${k("Vencidas", u.ve, u.ab ? Math.round(100 * u.ve / u.ab) + "% de las abiertas" : "", u.ve ? "var(--bad)" : "", qn && dlt(u.ve, qn.ve, false, false, ref))}
-    ${k("Cortes con datos", H.filter(Boolean).length, `de los últimos ${upto.length}`, "")}
+    ${k("Semanas con datos", H.filter(Boolean).length, `de las últimas ${upto.length}`, "")}
   </div>${u.partial ? `<p class="foot" style="margin:8px 0 0">* Línea base incompleta: ${u.sr} requisitos sin responder.</p>` : ""}</div>`;
   const labels = upto.map((f) => dmy(f).slice(0, 5));
   if (upto.length >= 2) {
     const leg = (c, t) => `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;font-size:12px;color:var(--ink2)"><i style="width:10px;height:10px;border-radius:50%;background:${c}"></i>${t}</span>`;
-    h += `<div class="grid2" style="margin-bottom:14px"><div class="card"><h2>Evolución del % de implementación</h2><div class="hint">Últimos ${upto.length} cortes semanales</div>${lineChart([{ name: "% implementación", color: "var(--s1)", vals: H.map((x) => (x ? x.pct : null)) }], labels, true)}</div>
+    h += `<div class="grid2" style="margin-bottom:14px"><div class="card"><h2>Evolución del % de implementación</h2><div class="hint">Un punto cada 7 días · últimas ${upto.length} semanas</div>${lineChart([{ name: "% implementación", color: "var(--s1)", vals: H.map((x) => (x ? x.pct : null)) }], labels, true)}</div>
     <div class="card"><h2>Evolución de brechas</h2><div class="hint">${leg("var(--s3)", "Abiertas")}${leg("var(--s2)", "Sin plan")}${leg("var(--s1)", "Vencidas")}</div>${lineChart([{ name: "Abiertas", color: "var(--s3)", vals: H.map((x) => (x ? x.ab : null)) }, { name: "Sin plan", color: "var(--s2)", vals: H.map((x) => (x ? x.spn : null)) }, { name: "Vencidas", color: "var(--s1)", vals: H.map((x) => (x ? x.ve : null)) }], labels, false)}</div></div>`;
   } else {
-    h += `<div class="card" style="margin-bottom:14px"><h2>Evolución semanal</h2><div class="hint">Primer corte registrado (${dmy(CUR)}). Desde el próximo corte aquí se verá la tendencia de esta empresa semana a semana.</div></div>`;
+    h += `<div class="card" style="margin-bottom:14px"><h2>Evolución semanal</h2><div class="hint">Aún no hay un corte de al menos 5 días antes del ${dmy(CUR)}. Cuando lo haya, aquí se verá la tendencia de esta empresa semana a semana.</div></div>`;
   }
   // RF x semanas
   const rfs = RFS.filter((r) => H.some((x) => x && typeof rfPct(x, r) === "number") || typeof rfPct(u, r) === "string");
   const cellv = (x, r) => { if (!x) return `<td class="na">–</td>`; const v = rfPct(x, r); if (v === "SR") return `<td class="sr">SR</td>`; return typeof v === "number" ? `<td class="${cls(v)}">${Math.round(v)}</td>` : `<td class="na">–</td>`; };
   const dcell = (a, b) => { if (typeof a !== "number" || typeof b !== "number") return `<td class="zero">${typeof a === "number" && b == null ? "nuevo" : "–"}</td>`; const d = Math.round((a - b) * 10) / 10; return d === 0 ? `<td class="zero">=</td>` : `<td class="dlt ${d > 0 ? "up" : "down"}">${d > 0 ? "▲" : "▼"} ${Math.abs(d).toFixed(1).replace(".", ",")}</td>`; };
   const pH = H.length >= 2 ? H[H.length - 2] : null;
-  h += `<div class="card" style="margin-bottom:14px"><h2>Implementación por RF, semana a semana</h2><div class="hint">% Sí / (Sí + No) de cada RF en cada corte${PREV ? ` · Δ: variación en puntos vs ${ref}` : ""}</div><div class="tablewrap" style="max-height:none"><table class="wtab"><thead><tr><th class="l">RF</th>${upto.map((f, j) => `<th class="${j === upto.length - 1 ? "cur" : ""}">${dmy(f).slice(0, 5)}</th>`).join("")}${PREV ? "<th>Δ sem.</th>" : ""}</tr></thead><tbody>
+  h += `<div class="card" style="margin-bottom:14px"><h2>Implementación por RF, semana a semana</h2><div class="hint">% Sí / (Sí + No) de cada RF, una columna cada 7 días${PREV ? ` · Δ: variación en puntos vs ${ref}` : ""}</div><div class="tablewrap" style="max-height:none"><table class="wtab"><thead><tr><th class="l">RF</th>${upto.map((f, j) => `<th class="${j === upto.length - 1 ? "cur" : ""}">${dmy(f).slice(0, 5)}</th>`).join("")}${PREV ? "<th>Δ sem.</th>" : ""}</tr></thead><tbody>
   ${rfs.map((r) => `<tr><td class="l"><b>${r}</b> <span style="color:var(--muted)">${RFN[r]}</span></td>${H.map((x) => cellv(x, r)).join("")}${PREV ? dcell(rfPct(u, r), pH ? rfPct(pH, r) : null) : ""}</tr>`).join("")}
   <tr class="tot"><td class="l">% total</td>${H.map((x) => `<td>${x ? fmt(x.pct) : "–"}</td>`).join("")}${PREV ? `<td>${pH ? (() => { const d = Math.round((u.pct - pH.pct) * 10) / 10; return d === 0 ? "=" : (d > 0 ? "▲ " : "▼ ") + Math.abs(d).toFixed(1).replace(".", ","); })() : "nuevo"}</td>` : ""}</tr></tbody></table></div></div>`;
   // brechas de la semana
@@ -606,7 +615,6 @@ async function init() {
   $("p-resumen").innerHTML = `<div id="loading">Cargando datos…</div>`;
   try {
     CORTES = (await getJSON("cortes/index.json")).cortes.slice().sort();
-    await Promise.all(CORTES.map(async (f) => { const j = await getJSON(`cortes/resumen_${f}.json`); RES[f] = { rfs: j.rfs, U: mkUnits(j) }; }));
     $("selCorte").innerHTML = CORTES.slice().reverse().map((f) => `<option value="${f}">${dmy(f)}</option>`).join("");
     await loadCorte(CORTES[CORTES.length - 1]);
     render();
