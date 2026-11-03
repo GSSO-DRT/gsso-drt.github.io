@@ -175,7 +175,7 @@ td .num{font-weight:400;color:var(--muted);font-size:11px;margin-left:5px}
 <div class="wrap">
 <aside>
   <h3>Ámbito</h3>
-  <div class="seg" id="segTipo"><button data-v="EECC" class="on">EECC</button><button data-v="Codelco">Codelco</button><button data-v="Todos">Todos</button></div>
+  <div class="seg" id="segTipo"><button data-v="Todos" class="on">Todos</button><button data-v="Codelco">Codelco</button><button data-v="EECC">EECC</button></div>
   <h3>Gerencia</h3>
   <div class="glist" id="glist"></div>
   <h3>Superintendencia / Dirección</h3>
@@ -254,7 +254,7 @@ async function loadCorte(f) {
 }
 const semanas = (b) => Math.max(0, Math.round((new Date(CUR) - new Date(b.desde)) / 6048e5));
 const semTxt = (b) => { const w = semanas(b); return w === 0 ? (PREV ? '<span class="pill ep">Nueva</span>' : "1ª") : `<b${w >= 4 ? ' style="color:var(--bad)"' : ""}>${w + 1}</b>`; };
-const S = { tipo: "EECC", ger: "Todas", sup: "Todas", q: "", page: "resumen", cmp: [], brF: { rf: "", est: "", q: "", pg: 0 }, sort: null };
+const S = { tipo: "Todos", ger: "Todas", sup: "Todas", q: "", page: "resumen", cmp: [], brF: { rf: "", est: "", q: "", pg: 0 }, sort: null };
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = (v) => v == null ? "–" : Math.round(v) + "%";
@@ -302,7 +302,7 @@ $("glist").addEventListener("click", (e) => { const b = e.target.closest("button
 $("segTipo").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; S.tipo = b.dataset.v; S.brF.pg = 0; render(); });
 $("selSup").addEventListener("change", (e) => { S.sup = e.target.value; S.brF.pg = 0; render(); });
 $("q").addEventListener("input", (e) => { S.q = e.target.value; S.brF.pg = 0; renderPage(); });
-$("reset").addEventListener("click", () => { Object.assign(S, { tipo: "EECC", ger: "Todas", sup: "Todas", q: "" }); $("q").value = ""; S.brF = { rf: "", est: "", q: "", pg: 0 }; render(); });
+$("reset").addEventListener("click", () => { Object.assign(S, { tipo: "Todos", ger: "Todas", sup: "Todas", q: "" }); $("q").value = ""; S.brF = { rf: "", est: "", q: "", pg: 0 }; render(); });
 $("tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; S.page = b.dataset.p; document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x === b)); renderPage(); });
 
 function scopeText(list) {
