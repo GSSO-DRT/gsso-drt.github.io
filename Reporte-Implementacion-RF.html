@@ -92,7 +92,7 @@ tr.tot td.lowt{color:#f6a89e!important}
 td .num{font-weight:400;color:var(--muted);font-size:11px;margin-left:5px}
 .gsep td{border-top:2px solid var(--navy)}
 .pill{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11px;font-weight:600}
-.pill.sp{background:#fbe3dc;color:var(--bad)}.pill.ve{background:var(--bad);color:#fff}.pill.ep{background:#e3ecf2;color:var(--navy)}
+.pill.sp{background:#fbe3dc;color:var(--bad)}.pill.ve{background:var(--bad);color:#fff}.pill.ep{background:#e3ecf2;color:var(--navy)}.pill.sf{background:var(--mid-bg);color:var(--mid)}
 .rank3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .rk{width:100%;border-collapse:collapse}
 .rk td{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left;white-space:normal;background:#fff}
@@ -134,6 +134,9 @@ td .num{font-weight:400;color:var(--muted);font-size:11px;margin-left:5px}
 .minik span{font-size:11.5px;color:var(--muted)}
 .empty{color:var(--muted);font-size:13px;padding:18px;text-align:center}
 .btab td.req{font-size:12px;color:var(--ink2);min-width:220px;max-width:360px}
+#drawer .btab td.req{min-width:150px;max-width:230px;font-size:11.5px}
+#drawer .btab td,#drawer .btab th{padding-left:5px;padding-right:5px}
+.dscroll{overflow-x:auto}
 .empnav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .empnav select{flex:1 1 320px;width:auto;min-width:0;font-weight:600}
 .empnav .navb{border:1px solid #cfd6db;background:#fff;border-radius:5px;padding:6px 12px;cursor:pointer;color:var(--navy);font-weight:700}
@@ -211,7 +214,7 @@ td .num{font-weight:400;color:var(--muted);font-size:11px;margin-left:5px}
   <section id="p-comparar" hidden></section>
   <section id="p-ranking" hidden></section>
   <section id="p-brechas" hidden></section>
-  <p class="foot">Valores obtenidos el <span id="corte2"></span> (actualización diaria; las variaciones ▲▼ comparan con el corte de 7 días antes), considerando los controles críticos definidos como transversales. Solo registros vigentes (Existencia = 1). Brechas abiertas: requisitos en «No» no cerrados · sin plan: sin plan de acción · vencidas: fecha de cierre pasada o «Fuera de Plazo». * línea base incompleta (requisitos sin responder).</p>
+  <p class="foot">Valores obtenidos el <span id="corte2"></span> (actualización diaria; las variaciones ▲▼ comparan con el corte de 7 días antes), considerando los controles críticos definidos como transversales. Solo registros vigentes (Existencia = 1). Brechas abiertas: requisitos en «No» no cerrados · sin plan: sin plan de acción · estado según la fecha programada de cierre: vencida (anterior a la fecha del corte), abierta (fecha vigente) o sin fecha. * línea base incompleta (requisitos sin responder).</p>
 </main>
 </div>
 <div class="drawer" id="drawer"><header><div><h2 id="dTitle"></h2><div class="hint" id="dSub"></div></div><button class="x" id="dClose" aria-label="Cerrar">✕</button></header><div class="body" id="dBody"></div></div>
@@ -224,7 +227,11 @@ const SER = ["var(--s1)","var(--s2)","var(--s3)","var(--s4)"];
 let RFS = [], U = [], BR = [], PREV = null, CORTES = [], CUR = null;
 const RES = {}, BRC = {};
 const brTxt = (b) => b.brecha ? esc(b.brecha) : '<span style="color:var(--muted)">(sin descripción de la brecha)</span>';
-const evTd = (ev, req) => `<td class="req">${ev ? esc(ev) : ev === undefined && req ? `<span style="color:var(--muted)">Requisito:</span> ${esc(req)}` : '<span style="color:var(--muted)">—</span>'}</td>`;
+const evTd = (ev) => `<td class="req">${ev ? esc(ev) : '<span style="color:var(--muted)">—</span>'}</td>`;
+const reqTd = (req) => `<td class="req">${req ? esc(req) : '<span style="color:var(--muted)">—</span>'}</td>`;
+// Estado según la fecha programada de cierre: vencida (fecha anterior al corte), abierta (fecha vigente) o sin fecha
+const estado = (fecha, venc) => (!fecha ? "sf" : venc ? "ve" : "ab");
+const estTd = (fecha, venc) => { const e = estado(fecha, venc); return `<td class="c">${e === "ve" ? '<span class="pill ve">Vencida</span>' : e === "ab" ? '<span class="pill ep">Abierta</span>' : '<span class="pill sf">Sin fecha</span>'}</td>`; };
 const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const dmy = (f) => f.split("-").reverse().join("-");
 const largo = (f) => { const [y, m, d] = f.split("-").map(Number); return `${d} de ${MESES[m - 1]} de ${y}`; };
@@ -381,9 +388,9 @@ function pageCambios(list) {
   const mej = ch.filter((x) => x.d > 0.05).sort((p2, q) => q.d - p2.d).slice(0, 10), ret = ch.filter((x) => x.d < -0.05).sort((p2, q) => p2.d - q.d).slice(0, 10);
   h += `<div class="grid2"><div class="card"><h2>Más mejoran</h2><div class="hint">Variación en puntos de % de implementación vs ${ref}</div>${mej.length ? `<table class="rk"><tbody>${mej.map(row).join("")}</tbody></table>` : `<div class="empty">Sin mejoras esta semana.</div>`}</div><div class="card"><h2>Retroceden</h2><div class="hint">Variación en puntos de % de implementación vs ${ref}</div>${ret.length ? `<table class="rk"><tbody>${ret.map(row).join("")}</tbody></table>` : `<div class="empty">Ningún contrato retrocede esta semana.</div>`}</div></div>`;
   const nm = (key) => { const u = U.find((x) => x.key === key) || PREV.byKey.get(key); return u ? `<b>${esc(u.name)}</b><br><span style="color:var(--muted);font-size:11px">${u.num} · ${GSH[u.ger]}</span>` : ""; };
-  const lst = (t, L, f) => `<div class="card" style="margin-top:14px"><h2>${t} (${L.length})</h2>${L.length ? `<div class="tablewrap" style="max-height:420px"><table class="btab"><thead><tr><th class="l">Empresa · contrato</th><th>RF</th><th class="l">Evidencia</th><th class="l">Brecha</th><th class="l">Plan de acción</th></tr></thead><tbody>${L.slice(0, 200).map(f).join("")}</tbody></table></div>${L.length > 200 ? `<p class="foot">Se muestran las primeras 200.</p>` : ""}` : `<div class="empty">Sin casos.</div>`}</div>`;
-  h += lst("Brechas nuevas esta semana", nuevas, (b) => `<tr><td>${nm(b.key)}</td><td class="c">${b.rf}<br><span style="color:var(--muted);font-size:11px">${esc(b.cc)}</span></td>${evTd(b.ev, b.req)}<td>${brTxt(b)}</td><td>${b.plan ? esc(b.plan) : '<span class="pill sp">Sin plan</span>'}</td></tr>`);
-  h += lst("Brechas cerradas esta semana", cerr, (b) => `<tr><td>${nm(b[0])}</td><td class="c">${b[1]}<br><span style="color:var(--muted);font-size:11px">${esc(b[3])}</span></td>${evTd(b[14], b[12])}<td>${b[5] ? esc(b[5]) : '<span style="color:var(--muted)">(sin descripción de la brecha)</span>'}</td><td>${esc(b[6]) || "—"}</td></tr>`);
+  const lst = (t, L, f) => `<div class="card" style="margin-top:14px"><h2>${t} (${L.length})</h2>${L.length ? `<div class="tablewrap" style="max-height:420px"><table class="btab"><thead><tr><th class="l">Empresa · contrato</th><th>RF</th><th class="l">Requisito no cumplido</th><th class="l">Evidencia</th><th class="l">Brecha</th><th class="l">Plan de acción</th></tr></thead><tbody>${L.slice(0, 200).map(f).join("")}</tbody></table></div>${L.length > 200 ? `<p class="foot">Se muestran las primeras 200.</p>` : ""}` : `<div class="empty">Sin casos.</div>`}</div>`;
+  h += lst("Brechas nuevas esta semana", nuevas, (b) => `<tr><td>${nm(b.key)}</td><td class="c">${b.rf}<br><span style="color:var(--muted);font-size:11px">${esc(b.cc)}</span></td>${reqTd(b.req)}${evTd(b.ev)}<td>${brTxt(b)}</td><td>${b.plan ? esc(b.plan) : '<span class="pill sp">Sin plan</span>'}</td></tr>`);
+  h += lst("Brechas cerradas esta semana", cerr, (b) => `<tr><td>${nm(b[0])}</td><td class="c">${b[1]}<br><span style="color:var(--muted);font-size:11px">${esc(b[3])}</span></td>${reqTd(b[12])}${evTd(b[14])}<td>${b[5] ? esc(b[5]) : '<span style="color:var(--muted)">(sin descripción de la brecha)</span>'}</td><td>${esc(b[6]) || "—"}</td></tr>`);
   return h;
 }
 
@@ -488,7 +495,7 @@ function pageRanking(list) {
   let h = `<div class="rank3">
     ${tbl("Menor nivel de implementación", R1, (u) => `<td class="val ${cls(u.pct)}">${fmt(u.pct)}</td>`, "Top 10, % Sí / (Sí + No)")}
     ${tbl("Más brechas sin plan de acción", R2, (u) => `<td class="val" style="color:var(--bad)">${u.spn}<span class="m" style="font-weight:400"> de ${u.ab}</span></td>`, "«de N»: brechas abiertas del contrato")}
-    ${tbl("Más brechas fuera de plazo", R3, (u) => `<td class="val" style="color:var(--bad)">${u.ve}<span class="m" style="font-weight:400"> de ${u.ab}</span></td>`, "Fecha de cierre pasada o «Fuera de Plazo»")}
+    ${tbl("Más brechas fuera de plazo", R3, (u) => `<td class="val" style="color:var(--bad)">${u.ve}<span class="m" style="font-weight:400"> de ${u.ab}</span></td>`, "Fecha programada de cierre anterior a la fecha del corte")}
   </div>`;
   const pos = (L, u) => { const i = L.indexOf(u); return i < 0 ? null : i + 1; };
   const rep = wd.map((u) => ({ u, p: [pos(R1, u), pos(R2, u), pos(R3, u)] })).map((r) => ({ ...r, c: r.p.filter(Boolean).length, s: r.p.reduce((a, x) => a + (x || 11), 0) })).filter((r) => r.c >= 2).sort((p, q) => q.c - p.c || p.s - q.s);
@@ -502,7 +509,7 @@ function pageRanking(list) {
 function pageBrechas(list) {
   const ids = new Set(list.map((u) => u.id));
   const F = S.brF;
-  let l = BR.filter((b) => ids.has(b.u) && (!F.rf || b.rf === F.rf) && (!F.est || (F.est === "sp" ? b.sp : F.est === "ve" ? b.venc : true)));
+  let l = BR.filter((b) => ids.has(b.u) && (!F.rf || b.rf === F.rf) && (!F.est || (F.est === "sp" ? b.sp : estado(b.fecha, b.venc) === F.est)));
   const q = F.q.trim().toLowerCase();
   if (q) l = l.filter((b) => (b.brecha + " " + b.plan + " " + b.resp + " " + b.ccn + " " + b.req + " " + (b.ev || "")).toLowerCase().includes(q));
   l.sort((p, q2) => (q2.venc - p.venc) || (q2.sp - p.sp) || (U[p.u].name.localeCompare(U[q2.u].name)));
@@ -510,8 +517,8 @@ function pageBrechas(list) {
   const sl = l.slice(F.pg * per, F.pg * per + per);
   const rfOpts = RFS.map((r) => `<option value="${r}" ${F.rf === r ? "selected" : ""}>${r} · ${RFN[r]}</option>`).join("");
   let h = `<div class="card"><h2>Brechas abiertas</h2><div class="hint">Requisitos en «No» no cerrados, según el filtro de la izquierda. Primero las vencidas y las sin plan.</div>
-  <div class="filters"><select id="bRF"><option value="">Todos los RF</option>${rfOpts}</select><select id="bEst"><option value="">Todas</option><option value="sp" ${F.est === "sp" ? "selected" : ""}>Sin plan de acción</option><option value="ve" ${F.est === "ve" ? "selected" : ""}>Vencidas</option></select><input type="search" id="bQ" placeholder="Buscar en evidencia, brecha, plan o responsable" value="${esc(F.q)}"><span style="color:var(--muted);font-size:12.5px">${l.length.toLocaleString("es-CL")} brechas</span></div>
-  ${sl.length ? `<div class="tablewrap"><table class="btab"><thead><tr><th class="l">Empresa · contrato</th><th>RF</th><th class="l">Control crítico</th><th class="l">Evidencia</th><th class="l">Brecha</th><th class="l">Plan de acción</th><th class="l">Responsable</th><th>Fecha</th><th data-tip="Semanas abierta (cortes en que figura)">Semanas</th><th>Estado</th></tr></thead><tbody>${sl.map((b) => { const u = U[b.u]; return `<tr><td><b>${esc(u.name)}</b><br><span style="color:var(--muted);font-size:11px">${u.num} · ${GSH[u.ger]}</span></td><td class="c">${b.rf}<br><span style="color:var(--muted);font-size:11px">${esc(b.cc)}</span></td><td>${esc(b.ccn)}</td>${evTd(b.ev, b.req)}<td>${brTxt(b)}</td><td>${b.plan ? esc(b.plan) : '<span class="pill sp">Sin plan</span>'}</td><td>${esc(b.resp) || '<span style="color:var(--muted)">—</span>'}</td><td class="c">${b.fecha ? b.fecha.split("-").reverse().join("-") : "—"}</td><td class="c">${semTxt(b)}</td><td class="c">${b.venc ? '<span class="pill ve">Vencida</span>' : `<span class="pill ep">${esc(b.est || "Abierta")}</span>`}</td></tr>`; }).join("")}</tbody></table></div>
+  <div class="filters"><select id="bRF"><option value="">Todos los RF</option>${rfOpts}</select><select id="bEst"><option value="">Todas</option><option value="sp" ${F.est === "sp" ? "selected" : ""}>Sin plan de acción</option><option value="ve" ${F.est === "ve" ? "selected" : ""}>Vencidas</option><option value="ab" ${F.est === "ab" ? "selected" : ""}>Abiertas (fecha vigente)</option><option value="sf" ${F.est === "sf" ? "selected" : ""}>Sin fecha</option></select><input type="search" id="bQ" placeholder="Buscar en requisito, evidencia, brecha, plan o responsable" value="${esc(F.q)}"><span style="color:var(--muted);font-size:12.5px">${l.length.toLocaleString("es-CL")} brechas</span></div>
+  ${sl.length ? `<div class="tablewrap"><table class="btab"><thead><tr><th class="l">Empresa · contrato</th><th>RF</th><th class="l">Control crítico</th><th class="l">Requisito no cumplido</th><th class="l">Evidencia</th><th class="l">Brecha</th><th class="l">Plan de acción</th><th class="l">Responsable</th><th>Fecha</th><th data-tip="Semanas abierta (cortes en que figura)">Semanas</th><th>Estado</th></tr></thead><tbody>${sl.map((b) => { const u = U[b.u]; return `<tr><td><b>${esc(u.name)}</b><br><span style="color:var(--muted);font-size:11px">${u.num} · ${GSH[u.ger]}</span></td><td class="c">${b.rf}<br><span style="color:var(--muted);font-size:11px">${esc(b.cc)}</span></td><td>${esc(b.ccn)}</td>${reqTd(b.req)}${evTd(b.ev)}<td>${brTxt(b)}</td><td>${b.plan ? esc(b.plan) : '<span class="pill sp">Sin plan</span>'}</td><td>${esc(b.resp) || '<span style="color:var(--muted)">—</span>'}</td><td class="c">${b.fecha ? b.fecha.split("-").reverse().join("-") : "—"}</td><td class="c">${semTxt(b)}</td>${estTd(b.fecha, b.venc)}</tr>`; }).join("")}</tbody></table></div>
   <div class="pager"><button id="bPrev" ${F.pg === 0 ? "disabled" : ""}>Anterior</button>Página ${F.pg + 1} de ${pages}<button id="bNext" ${F.pg >= pages - 1 ? "disabled" : ""}>Siguiente</button></div>` : `<div class="empty">Sin brechas para este filtro.</div>`}</div>`;
   return h;
 }
@@ -566,9 +573,9 @@ function pageEmpresa(list) {
     const cur = BR.filter((b) => b.key === u.key), prv = PREV.br.filter((b) => b[0] === u.key);
     const ck = new Set(cur.map((b) => b.rid)), pk = new Set(prv.map((b) => b[2]));
     const nuevas = cur.filter((b) => !pk.has(b.rid)), cerr = prv.filter((b) => !ck.has(b[2]));
-    const lst = (t, Lx, f, c) => `<div class="card"><h2>${t} <span style="color:${c};font-weight:700">${Lx.length}</span></h2>${Lx.length ? `<div class="tablewrap" style="max-height:340px"><table class="btab"><thead><tr><th>RF</th><th class="l">Evidencia</th><th class="l">Brecha</th><th class="l">Plan de acción</th></tr></thead><tbody>${Lx.slice(0, 100).map(f).join("")}</tbody></table></div>` : `<div class="empty">Sin casos.</div>`}</div>`;
-    h += `<div class="grid2">${lst("Brechas cerradas esta semana", cerr, (b) => `<tr><td class="c">${b[1]}<br><span style="color:var(--muted);font-size:11px">${esc(b[3])}</span></td>${evTd(b[14], b[12])}<td>${b[5] ? esc(b[5]) : '<span style="color:var(--muted)">(sin descripción de la brecha)</span>'}</td><td>${esc(b[6]) || "—"}</td></tr>`, "var(--ok)")}
-    ${lst("Brechas nuevas esta semana", nuevas, (b) => `<tr><td class="c">${b.rf}<br><span style="color:var(--muted);font-size:11px">${esc(b.cc)}</span></td>${evTd(b.ev, b.req)}<td>${brTxt(b)}</td><td>${b.plan ? esc(b.plan) : '<span class="pill sp">Sin plan</span>'}</td></tr>`, nuevas.length ? "var(--bad)" : "var(--muted)")}</div>`;
+    const lst = (t, Lx, f, c) => `<div class="card"><h2>${t} <span style="color:${c};font-weight:700">${Lx.length}</span></h2>${Lx.length ? `<div class="tablewrap" style="max-height:340px"><table class="btab"><thead><tr><th>RF</th><th class="l">Requisito no cumplido</th><th class="l">Evidencia</th><th class="l">Brecha</th><th class="l">Plan de acción</th></tr></thead><tbody>${Lx.slice(0, 100).map(f).join("")}</tbody></table></div>` : `<div class="empty">Sin casos.</div>`}</div>`;
+    h += `<div class="grid2">${lst("Brechas cerradas esta semana", cerr, (b) => `<tr><td class="c">${b[1]}<br><span style="color:var(--muted);font-size:11px">${esc(b[3])}</span></td>${reqTd(b[12])}${evTd(b[14])}<td>${b[5] ? esc(b[5]) : '<span style="color:var(--muted)">(sin descripción de la brecha)</span>'}</td><td>${esc(b[6]) || "—"}</td></tr>`, "var(--ok)")}
+    ${lst("Brechas nuevas esta semana", nuevas, (b) => `<tr><td class="c">${b.rf}<br><span style="color:var(--muted);font-size:11px">${esc(b.cc)}</span></td>${reqTd(b.req)}${evTd(b.ev)}<td>${brTxt(b)}</td><td>${b.plan ? esc(b.plan) : '<span class="pill sp">Sin plan</span>'}</td></tr>`, nuevas.length ? "var(--bad)" : "var(--muted)")}</div>`;
   }
   return h;
 }
@@ -657,7 +664,7 @@ function openDrawer(id) {
   if (u.partial) h += `<p class="foot" style="margin-top:0">* Línea base incompleta: ${u.sr} requisitos sin responder.</p>`;
   h += `<h2 style="font-size:14px">Implementación por RF</h2>${rfColumns(u)}`;
   h += `<h2 style="font-size:14px;margin-top:12px">Brechas abiertas (${bl.length})</h2>`;
-  h += bl.length ? `<table class="btab"><thead><tr><th>RF</th><th class="l">Evidencia</th><th class="l">Brecha</th><th class="l">Plan · responsable</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>${bl.map((b) => `<tr><td class="c">${b.rf}<br><span style="color:var(--muted);font-size:11px">${esc(b.cc)}</span></td>${evTd(b.ev, b.req)}<td>${brTxt(b)}</td><td>${b.plan ? esc(b.plan) : '<span class="pill sp">Sin plan</span>'}${b.resp ? `<br><span style="color:var(--muted);font-size:11px">${esc(b.resp)}</span>` : ""}</td><td class="c">${b.fecha ? b.fecha.split("-").reverse().join("-") : "—"}</td><td class="c">${b.venc ? '<span class="pill ve">Vencida</span>' : `<span class="pill ep">${esc(b.est || "Abierta")}</span>`}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Sin brechas abiertas.</div>`;
+  h += bl.length ? `<div class="dscroll"><table class="btab"><thead><tr><th>RF</th><th class="l">Requisito no cumplido</th><th class="l">Evidencia</th><th class="l">Brecha</th><th class="l">Plan · responsable</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>${bl.map((b) => `<tr><td class="c">${b.rf}<br><span style="color:var(--muted);font-size:11px">${esc(b.cc)}</span></td>${reqTd(b.req)}${evTd(b.ev)}<td>${brTxt(b)}</td><td>${b.plan ? esc(b.plan) : '<span class="pill sp">Sin plan</span>'}${b.resp ? `<br><span style="color:var(--muted);font-size:11px">${esc(b.resp)}</span>` : ""}</td><td class="c">${b.fecha ? b.fecha.split("-").reverse().join("-") : "—"}</td>${estTd(b.fecha, b.venc)}</tr>`).join("")}</tbody></table></div>` : `<div class="empty">Sin brechas abiertas.</div>`;
   h += `<p style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">${u.n > 0 ? `<button class="reset" style="width:auto;margin:0;padding:7px 12px" data-gotoemp="${id}">Ver avance semanal</button>` : ""}<button class="reset" style="width:auto;margin:0;padding:7px 12px" data-addcmp="${id}">Agregar a comparación</button></p>`;
   $("dBody").innerHTML = h;
   $("drawer").classList.add("open");
