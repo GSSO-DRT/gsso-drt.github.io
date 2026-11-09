@@ -90,6 +90,14 @@ tr.cod td.l{font-style:italic;color:var(--navy);background:#eef2f5}
 tr.tot td{background:var(--dark)!important;color:#fff!important;font-weight:700;position:sticky;bottom:0}
 tr.tot td.lowt{color:#f6a89e!important}
 td .num{font-weight:400;color:var(--muted);font-size:11px;margin-left:5px}
+/* columnas fijas al desplazar la tabla hacia el lado */
+table.fix1 tr>:first-child,table.fix2 tr>:nth-child(-n+2){position:sticky;z-index:1;background:#fff}
+table.fix1 thead tr>:first-child,table.fix2 thead tr>:nth-child(-n+2){z-index:4;background:var(--navy)}
+table.fix1 tr>:first-child{left:0;box-shadow:inset -1px 0 0 var(--line),4px 0 6px -4px rgba(0,0,0,.18)}
+table.fix2 tr>:first-child{left:0;width:250px;min-width:250px;max-width:250px}
+table.fix2 tr>:nth-child(2){left:250px;width:112px;min-width:112px;max-width:112px;overflow:hidden;text-overflow:ellipsis;box-shadow:inset -1px 0 0 var(--line),4px 0 6px -4px rgba(0,0,0,.18)}
+table.fix1 tr.cod>:first-child,table.fix2 tr.cod>:nth-child(-n+2){background:#eef2f5}
+table.fix1 tr.tot>:first-child,table.fix2 tr.tot>:nth-child(-n+2){background:var(--dark);z-index:3}
 .gsep td{border-top:2px solid var(--navy)}
 .pill{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11px;font-weight:600}
 .pill.sp{background:#fbe3dc;color:var(--bad)}.pill.ve{background:var(--bad);color:#fff}.pill.ep{background:#e3ecf2;color:var(--navy)}.pill.sf{background:var(--mid-bg);color:var(--mid)}
@@ -446,7 +454,7 @@ function pageMatriz(list) {
   if (byGer) rows.sort((p, q) => GORD.indexOf(p.ger) - GORD.indexOf(q.ger) || (p.tipo === q.tipo ? p.pct - q.pct : p.tipo === "Codelco" ? 1 : -1));
   else rows.sort((p, q) => (["ab", "spn", "ve"].includes(sk) ? key(q) - key(p) : key(p) - key(q)));
   const th = (k, t, sub, l) => `<th class="${l ? "l" : ""}" data-sort="${k}" data-tip="Ordenar por ${esc(t)}">${t}${sub ? `<small>${sub}</small>` : ""}${S.sort === k ? " ▾" : ""}</th>`;
-  let h = `<div class="card"><h2>Matriz de implementación por RF</h2><div class="hint">Clic en un encabezado para ordenar (clic en «Empresa» vuelve al orden por gerencia) · clic en una fila para ver el detalle y sus brechas</div><div class="tablewrap"><table><thead><tr>${th("", "Empresa · contrato", "", true)}<th class="l">Gerencia</th>${RFS.map((r) => th(r, r, RFN[r].split(" ")[0])).join("")}${th("pct", "% total")}${PREV ? `<th data-tip="Variación en puntos vs ${dmy(PREV.f)}">Δ sem.</th>` : ""}<th>RF &lt; 80%</th>${th("ab", "Abiertas")}${th("spn", "Sin plan")}${th("ve", "Vencidas")}</tr></thead><tbody>`;
+  let h = `<div class="card"><h2>Matriz de implementación por RF</h2><div class="hint">Clic en un encabezado para ordenar (clic en «Empresa» vuelve al orden por gerencia) · clic en una fila para ver el detalle y sus brechas</div><div class="tablewrap"><table class="fix2"><thead><tr>${th("", "Empresa · contrato", "", true)}<th class="l">Gerencia</th>${RFS.map((r) => th(r, r, RFN[r].split(" ")[0])).join("")}${th("pct", "% total")}${PREV ? `<th data-tip="Variación en puntos vs ${dmy(PREV.f)}">Δ sem.</th>` : ""}<th>RF &lt; 80%</th>${th("ab", "Abiertas")}${th("spn", "Sin plan")}${th("ve", "Vencidas")}</tr></thead><tbody>`;
   let prev = null;
   rows.forEach((u) => {
     const vals = RFS.map((r) => rfPct(u, r));
@@ -575,7 +583,7 @@ function pageEmpresa(list) {
   const cellv = (x, r) => { if (!x) return `<td class="na">–</td>`; const v = rfPct(x, r); if (v === "SR") return `<td class="sr">SR</td>`; return typeof v === "number" ? `<td class="${cls(v)}">${Math.round(v)}</td>` : `<td class="na">–</td>`; };
   const dcell = (a, b) => { if (typeof a !== "number" || typeof b !== "number") return `<td class="zero">${typeof a === "number" && b == null ? "nuevo" : "–"}</td>`; const d = Math.round((a - b) * 10) / 10; return d === 0 ? `<td class="zero">=</td>` : `<td class="dlt ${d > 0 ? "up" : "down"}">${d > 0 ? "▲" : "▼"} ${Math.abs(d).toFixed(1).replace(".", ",")}</td>`; };
   const pH = H.length >= 2 ? H[H.length - 2] : null;
-  h += `<div class="card" style="margin-bottom:14px"><h2>Implementación por RF, semana a semana</h2><div class="hint">% Sí / (Sí + No) de cada RF, una columna cada 7 días${PREV ? ` · Δ: variación en puntos vs ${ref}` : ""}</div><div class="tablewrap" style="max-height:none"><table class="wtab"><thead><tr><th class="l">RF</th>${upto.map((f, j) => `<th class="${j === upto.length - 1 ? "cur" : ""}">${dmy(f).slice(0, 5)}</th>`).join("")}${PREV ? "<th>Δ sem.</th>" : ""}</tr></thead><tbody>
+  h += `<div class="card" style="margin-bottom:14px"><h2>Implementación por RF, semana a semana</h2><div class="hint">% Sí / (Sí + No) de cada RF, una columna cada 7 días${PREV ? ` · Δ: variación en puntos vs ${ref}` : ""}</div><div class="tablewrap" style="max-height:none"><table class="wtab fix1"><thead><tr><th class="l">RF</th>${upto.map((f, j) => `<th class="${j === upto.length - 1 ? "cur" : ""}">${dmy(f).slice(0, 5)}</th>`).join("")}${PREV ? "<th>Δ sem.</th>" : ""}</tr></thead><tbody>
   ${rfs.map((r) => `<tr><td class="l"><b>${r}</b> <span style="color:var(--muted)">${RFN[r]}</span></td>${H.map((x) => cellv(x, r)).join("")}${PREV ? dcell(rfPct(u, r), pH ? rfPct(pH, r) : null) : ""}</tr>`).join("")}
   <tr class="tot"><td class="l">% total</td>${H.map((x) => `<td>${x ? fmt(x.pct) : "–"}</td>`).join("")}${PREV ? `<td>${pH ? (() => { const d = Math.round((u.pct - pH.pct) * 10) / 10; return d === 0 ? "=" : (d > 0 ? "▲ " : "▼ ") + Math.abs(d).toFixed(1).replace(".", ","); })() : "nuevo"}</td>` : ""}</tr></tbody></table></div></div>`;
   // brechas de la semana
@@ -654,7 +662,7 @@ function pageRF(list) {
   if (ccm && cm.size && areas.length > 1) {
     const ccs = [...cm.keys()].sort();
     const ar = arows.map((x) => ({ ...x, cm: ccOf(x.L, r) }));
-    h += `<div class="card" style="margin-bottom:14px"><h2>Controles críticos por ${byGer ? "gerencia" : "superintendencia"}</h2><div class="hint">% de cada control en cada área · pase el cursor para ver el detalle</div><div class="tablewrap" style="max-height:none"><table class="heat"><thead><tr><th class="l">Control crítico</th>${ar.map((x) => `<th class="v" title="${esc(x.name)}">${esc(x.name.length > 28 ? x.name.slice(0, 27) + "…" : x.name)}</th>`).join("")}<th>Total</th></tr></thead><tbody>
+    h += `<div class="card" style="margin-bottom:14px"><h2>Controles críticos por ${byGer ? "gerencia" : "superintendencia"}</h2><div class="hint">% de cada control en cada área · pase el cursor para ver el detalle</div><div class="tablewrap" style="max-height:none"><table class="heat fix1"><thead><tr><th class="l">Control crítico</th>${ar.map((x) => `<th class="v" title="${esc(x.name)}">${esc(x.name.length > 28 ? x.name.slice(0, 27) + "…" : x.name)}</th>`).join("")}<th>Total</th></tr></thead><tbody>
     ${ccs.map((kk) => { const code = kk.split("|")[1]; const nm = nice((ccm[kk] || [""])[0]); return `<tr><td class="l" title="${esc(nm)}"><b>${esc(code)}</b> <span style="color:var(--ink2)">${esc(nm.length > 48 ? nm.slice(0, 47) + "…" : nm)}</span></td>${ar.map((x) => { const o = x.cm.get(kk); return o ? `<td class="${cls(o.pct)}" data-tip="<b>${esc(x.name)}</b><br>${esc(code)} · ${esc(nm)}<br>${fmt(o.pct)} · Sí ${o.si} / No ${o.no} · ${o.n} con datos">${Math.round(o.pct)}</td>` : `<td class="na">–</td>`; }).join("")}<td class="${cls(cm.get(kk).pct)}">${Math.round(cm.get(kk).pct)}</td></tr>`; }).join("")}
     </tbody></table></div></div>`;
   }
